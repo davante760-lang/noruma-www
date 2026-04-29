@@ -144,110 +144,142 @@ const isAggregateProcess = process.length === 1 && process[0].round === 0;
 
     {/* 2. processSection — omitted when empty */}
     {process.length > 0 && (
-      <section class="slot slot-process">
-        <h2>Interview process</h2>
-        {isAggregateProcess ? (
-          <div class="callout">
-            <p><strong>{process[0].name}.</strong> {process[0].focus}</p>
-            <p class="cite">
-              Sourced from <a href={process[0].sourceUrl}>{process[0].sourceType}</a>.
-            </p>
-          </div>
-        ) : (
-          <>
-            <table>
-              <thead>
-                <tr>
-                  <th>Round</th>
-                  <th>Format</th>
-                  <th>Duration</th>
-                  <th>Who you meet</th>
-                  <th>Focus</th>
-                </tr>
-              </thead>
-              <tbody>
-                {process.map((r) => (
-                  <tr>
-                    <td>{r.round}</td>
-                    <td>{r.format}{r.name ? ` (${r.name})` : ''}</td>
-                    <td>{r.durationMin ? `${r.durationMin} min` : ''}</td>
-                    <td>{r.who ?? ''}</td>
-                    <td>{r.focus ?? ''}</td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-            {process[0].sourceUrl && (
+      <>
+        <section class="slot slot-process">
+          <h2>Interview process</h2>
+          {isAggregateProcess ? (
+            <div class="callout">
+              <p><strong>{process[0].name}.</strong> {process[0].focus}</p>
               <p class="cite">
-                Process sourced from{' '}
-                <a href={process[0].sourceUrl}>{process[0].sourceType}</a>.
+                Sourced from <a href={process[0].sourceUrl}>{process[0].sourceType}</a>.
               </p>
-            )}
-          </>
-        )}
-        {diagramSvg && (
-          <figure class="diagram">
-            <img src={diagramSvg} alt={`${companyDisplay} ${roleDisplay} interview funnel diagram`} width="800" height="320" loading="lazy" />
-          </figure>
-        )}
-      </section>
+            </div>
+          ) : (
+            <>
+              <table>
+                <thead>
+                  <tr>
+                    <th>Round</th>
+                    <th>Format</th>
+                    <th>Duration</th>
+                    <th>Who you meet</th>
+                    <th>Focus</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {process.map((r) => (
+                    <tr>
+                      <td>{r.round}</td>
+                      <td>{r.format}{r.name ? ` (${r.name})` : ''}</td>
+                      <td>{r.durationMin ? `${r.durationMin} min` : ''}</td>
+                      <td>{r.who ?? ''}</td>
+                      <td>{r.focus ?? ''}</td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+              {process[0].sourceUrl && (
+                <p class="cite">
+                  Process sourced from{' '}
+                  <a href={process[0].sourceUrl}>{process[0].sourceType}</a>.
+                </p>
+              )}
+            </>
+          )}
+          {diagramSvg && (
+            <figure class="diagram">
+              <img src={diagramSvg} alt={`${companyDisplay} ${roleDisplay} interview funnel diagram`} width="800" height="320" loading="lazy" />
+            </figure>
+          )}
+        </section>
+
+        <aside class="cta-aside" data-cta="process">
+          <h3>Each round asks different questions. Noruma populates the right answer for each one.</h3>
+          <p>Recruiter screen, panel, mock pitch: not interchangeable. The moment the live question lands, the answer's already populated, framed for that round.</p>
+          <a href={ctaUrl}>See Noruma in action &rarr;</a>
+        </aside>
+      </>
     )}
 
     {/* 3. compSection — always present (compensation is required) */}
     {compensation && (
-      <section class="slot slot-comp">
-        <h2>Compensation benchmarks</h2>
-        <table>
-          <thead>
-            <tr><th>Metric</th><th>Range</th></tr>
-          </thead>
-          <tbody>
-            <tr><td>Base salary</td><td>{range(compensation.baseMin, compensation.baseMax, compensation.currency)}</td></tr>
-            {compensation.oteMin && compensation.oteMax && (
-              <tr><td>OTE</td><td>{range(compensation.oteMin, compensation.oteMax, compensation.currency)}</td></tr>
-            )}
-            {compensation.quotaMin && compensation.quotaMax && (
-              <tr><td>Quota</td><td>{range(compensation.quotaMin, compensation.quotaMax, compensation.currency)}</td></tr>
-            )}
-          </tbody>
-        </table>
-        <p class="cite">
-          Source: <a href={compensation.sourceUrl}>{compensation.source}</a>, as of {compensation.asOfDate}, sample size {compensation.sampleSize} reps.
-          {!compensation.quotaMin && <> Quota not publicly disclosed.</>}
-        </p>
-      </section>
+      <>
+        <section class="slot slot-comp">
+          <h2>Compensation benchmarks</h2>
+          <table>
+            <thead>
+              <tr><th>Metric</th><th>Range</th></tr>
+            </thead>
+            <tbody>
+              <tr><td>Base salary</td><td>{range(compensation.baseMin, compensation.baseMax, compensation.currency)}</td></tr>
+              {compensation.oteMin && compensation.oteMax && (
+                <tr><td>OTE</td><td>{range(compensation.oteMin, compensation.oteMax, compensation.currency)}</td></tr>
+              )}
+              {compensation.quotaMin && compensation.quotaMax && (
+                <tr><td>Quota</td><td>{range(compensation.quotaMin, compensation.quotaMax, compensation.currency)}</td></tr>
+              )}
+            </tbody>
+          </table>
+          <p class="cite">
+            Source: <a href={compensation.sourceUrl}>{compensation.source}</a>, as of {compensation.asOfDate}, sample size {compensation.sampleSize} reps.
+            {!compensation.quotaMin && <> Quota not publicly disclosed.</>}
+          </p>
+        </section>
+
+        <aside class="cta-aside" data-cta="comp">
+          <h3>Pin your number above the median, in the moment.</h3>
+          <p>When the recruiter probes your comp expectation, you have eight seconds before you sound greedy or undersell. Noruma populates the right framing instantly, anchored to public bands.</p>
+          <a href={ctaUrl}>Try Noruma free &rarr;</a>
+        </aside>
+      </>
     )}
 
     {/* 4. lookingForSection — omitted when empty */}
     {jobRequirements.length > 0 && (
-      <section class="slot slot-looking-for">
-        <h2>What {companyDisplay} looks for</h2>
-        <ul class="bullets">
-          {jobRequirements.map((j) => (
-            <li>
-              {j.text}{' '}
-              <a class="src-tag" href={j.sourceUrl}>(archived posting)</a>
-            </li>
-          ))}
-        </ul>
-      </section>
+      <>
+        <section class="slot slot-looking-for">
+          <h2>What {companyDisplay} looks for</h2>
+          <ul class="bullets">
+            {jobRequirements.map((j) => (
+              <li>
+                {j.text}{' '}
+                <a class="src-tag" href={j.sourceUrl}>(archived posting)</a>
+              </li>
+            ))}
+          </ul>
+        </section>
+
+        <aside class="cta-aside" data-cta="looking-for">
+          <h3>Hit every requirement out loud, with the right metric attached.</h3>
+          <p>Your resume says you can do it. The interview measures whether you can say it. Noruma populates the right story from your deals, the moment a requirement comes up live.</p>
+          <a href={ctaUrl}>Try Noruma free &rarr;</a>
+        </aside>
+      </>
     )}
 
     {/* 5. redditSaysSection — omitted when empty */}
     {redditQuotes.length > 0 && (
-      <section class="slot slot-reddit-says">
-        <h2>What r/sales says</h2>
-        <p class="lead">Community-shared advice on interviewing at {companyDisplay}, sourced from public r/sales threads. Quoted verbatim; usernames stripped.</p>
-        {redditQuotes.map((q) => (
-          <blockquote class="reddit-quote">
-            <p>{q.quote}</p>
-            <footer>
-              <a href={q.sourceUrl}>r/sales{q.sourceDate ? ` · ${q.sourceDate}` : ''}</a>
-              {q.threadTitle && <> · <span class="thread-title">{q.threadTitle}</span></>}
-            </footer>
-          </blockquote>
-        ))}
-      </section>
+      <>
+        <section class="slot slot-reddit-says">
+          <h2>What r/sales says</h2>
+          <p class="lead">Community-shared advice on interviewing at {companyDisplay}, sourced from public r/sales threads. Quoted verbatim; usernames stripped.</p>
+          {redditQuotes.map((q) => (
+            <blockquote class="reddit-quote">
+              <p>{q.quote}</p>
+              <footer>
+                <a href={q.sourceUrl}>r/sales{q.sourceDate ? ` · ${q.sourceDate}` : ''}</a>
+                {q.threadTitle && <> · <span class="thread-title">{q.threadTitle}</span></>}
+              </footer>
+            </blockquote>
+          ))}
+        </section>
+
+        <aside class="cta-aside" data-cta="reddit-says">
+          <h3>r/sales debriefs are prep. Noruma is delivery.</h3>
+          <p>Reading what worked for someone else is one thing. Having the perfect answer populated for you the moment the live question lands is another.</p>
+          <a href={ctaUrl}>Try Noruma free &rarr;</a>
+        </aside>
+      </>
     )}
 
     {/* Optional: Reports from r/sales — verbatim questions, only when present */}
@@ -268,10 +300,18 @@ const isAggregateProcess = process.length === 1 && process[0].round === 0;
 
     {/* 6. prepSection — LLM-generated narrative; always present */}
     {prepSection && (
-      <section class="slot slot-prep">
-        <h2>How to prep</h2>
-        <div class="prep-body" set:html={prepSection} />
-      </section>
+      <>
+        <section class="slot slot-prep">
+          <h2>How to prep</h2>
+          <div class="prep-body" set:html={prepSection} />
+        </section>
+
+        <aside class="cta-aside" data-cta="prep">
+          <h3>Prep gets you ready. Noruma populates the perfect answer in real time.</h3>
+          <p>STAR, MEDDPICC, BANT memorized is table stakes. Noruma takes your prep and your deal stories and populates the answer that fits the live question, instantly.</p>
+          <a href={ctaUrl}>Try Noruma free &rarr;</a>
+        </aside>
+      </>
     )}
 
     {/* Cultural claims — inline if any */}
@@ -311,9 +351,9 @@ const isAggregateProcess = process.length === 1 && process[0].round === 0;
       ) : (
         <p>
           This page is the prep. When you're in the live {companyDisplay} {roleDisplay} interview,{' '}
-          <a href={ctaUrl}>Noruma is in your ear</a>: real-time answer hints during the actual call,
-          sourced from your own deal stories and the prep above. Audio is processed in real time and
-          not retained unless you opt in.
+          <a href={ctaUrl}>Noruma populates the perfect answer for every question in real time</a>,
+          drawn from your prep and your own deal stories. Audio is processed in real time and not
+          retained unless you opt in.
         </p>
       )}
     </section>
@@ -471,4 +511,34 @@ const isAggregateProcess = process.length === 1 && process[0].round === 0;
     margin: 0;
     color: var(--text-secondary, #C5CCD6);
   }
+  /* Inter-section CTAs: visually subordinate to the final CTA card.
+     Subtle teal accent strip after each major content section. */
+  .cta-aside {
+    background: linear-gradient(90deg, rgba(0, 224, 204, 0.05), rgba(0, 224, 204, 0.01));
+    border-left: 3px solid var(--accent, #00E0CC);
+    border-radius: 6px;
+    padding: 14px 18px;
+    margin: 12px 0 0;
+  }
+  .cta-aside h3 {
+    color: var(--text, #F7F8FB);
+    font-size: 15px;
+    font-weight: 600;
+    line-height: 1.35;
+    letter-spacing: -0.005em;
+    margin: 0 0 6px;
+  }
+  .cta-aside p {
+    color: var(--text-secondary, #C5CCD6);
+    font-size: 14px;
+    line-height: 1.55;
+    margin: 0 0 8px;
+  }
+  .cta-aside a {
+    color: var(--accent, #00E0CC);
+    font-size: 13px;
+    font-weight: 500;
+    text-decoration: none;
+  }
+  .cta-aside a:hover { text-decoration: underline; }
 </style>

@@ -306,11 +306,16 @@ const isAggregateProcess = process.length === 1 && process[0].round === 0;
 
     {/* 8. ctaSection — always present */}
     <section class="slot slot-cta">
-      <p>
-        {ctaCopy ?? `Practice these questions live with `}
-        <a href={ctaUrl}>Noruma's real-time interview copilot</a>.
-        Audio is processed in real time and not retained unless you opt in.
-      </p>
+      {ctaCopy ? (
+        <p set:html={ctaCopy} />
+      ) : (
+        <p>
+          This page is the prep. When you're in the live {companyDisplay} {roleDisplay} interview,{' '}
+          <a href={ctaUrl}>Noruma is in your ear</a>: real-time answer hints during the actual call,
+          sourced from your own deal stories and the prep above. Audio is processed in real time and
+          not retained unless you opt in.
+        </p>
+      )}
     </section>
   </div>
 

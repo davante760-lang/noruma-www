@@ -1,0 +1,64 @@
+{
+  "_meta": {
+    "purpose": "Curated company queue input for skill #1 (seo-orchestrator). Read at queue refill; edit to change targets.",
+    "compiledAt": "2026-04-29",
+    "compiledBy": "noruma-bot-claude",
+    "sources": [
+      {
+        "label": "RepVue Top Sales Companies 2026",
+        "url": "https://www.repvue.com/top-sales-companies",
+        "note": "Public list of top-rated B2B SaaS sales orgs by RepVue's reviewer scores. Used for inclusion + as the canonical compensation/rep-count source at scrape time."
+      },
+      {
+        "label": "Built In Best B2B SaaS Companies",
+        "url": "https://builtin.com/articles/best-b2b-saas-companies",
+        "note": "Editorial list of well-known B2B SaaS employers. Used as a secondary inclusion signal for breadth."
+      }
+    ],
+    "notes": [
+      "repvueRepCount is INTENTIONALLY OMITTED from these entries. Skill #2 verifies live at scrape time. The engine skips any company with < 20 RepVue reviewers automatically.",
+      "Roles per company default to: enterprise-ae, mid-market-ae, commercial-ae, bdr, sdr, sales-leadership (in that priority order). Override per-company via the rolesOverride field.",
+      "Priority is operator hint only: 1 = high (front of queue), 2 = medium, 3 = backfill."
+    ]
+  },
+  "companies": [
+    {"company": "salesforce", "companyDisplay": "Salesforce", "priority": 1, "addedFrom": ["operator", "RepVue"]},
+    {"company": "gong", "companyDisplay": "Gong", "priority": 1, "addedFrom": ["operator", "RepVue"]},
+    {"company": "outreach", "companyDisplay": "Outreach", "priority": 1, "addedFrom": ["operator", "RepVue"]},
+    {"company": "zoominfo", "companyDisplay": "ZoomInfo", "priority": 1, "addedFrom": ["operator", "RepVue"]},
+    {"company": "hubspot", "companyDisplay": "HubSpot", "priority": 1, "addedFrom": ["operator", "RepVue", "Built In"]},
+    {"company": "snowflake", "companyDisplay": "Snowflake", "priority": 1, "addedFrom": ["operator", "RepVue"]},
+    {"company": "datadog", "companyDisplay": "Datadog", "priority": 1, "addedFrom": ["operator", "RepVue"]},
+    {"company": "mongodb", "companyDisplay": "MongoDB", "priority": 1, "addedFrom": ["operator", "RepVue"]},
+    {"company": "okta", "companyDisplay": "Okta", "priority": 2, "addedFrom": ["operator", "RepVue"]},
+    {"company": "cloudflare", "companyDisplay": "Cloudflare", "priority": 2, "addedFrom": ["operator", "RepVue", "Built In"]},
+    {"company": "stripe", "companyDisplay": "Stripe", "priority": 1, "addedFrom": ["operator", "Built In"]},
+    {"company": "notion", "companyDisplay": "Notion", "priority": 2, "addedFrom": ["operator", "Built In"]},
+    {"company": "figma", "companyDisplay": "Figma", "priority": 2, "addedFrom": ["operator", "Built In"]},
+    {"company": "vercel", "companyDisplay": "Vercel", "priority": 2, "addedFrom": ["operator"]},
+    {"company": "netradyne", "companyDisplay": "Netradyne", "priority": 2, "addedFrom": ["operator", "RepVue"]},
+    {"company": "samsara", "companyDisplay": "Samsara", "priority": 2, "addedFrom": ["operator", "RepVue"]},
+    {"company": "workday", "companyDisplay": "Workday", "priority": 2, "addedFrom": ["RepVue", "Built In"]},
+    {"company": "servicenow", "companyDisplay": "ServiceNow", "priority": 2, "addedFrom": ["RepVue", "Built In"]},
+    {"company": "atlassian", "companyDisplay": "Atlassian", "priority": 2, "addedFrom": ["RepVue", "Built In"]},
+    {"company": "asana", "companyDisplay": "Asana", "priority": 3, "addedFrom": ["RepVue", "Built In"]},
+    {"company": "monday-com", "companyDisplay": "monday.com", "priority": 3, "addedFrom": ["RepVue", "Built In"]},
+    {"company": "zoom", "companyDisplay": "Zoom", "priority": 2, "addedFrom": ["RepVue", "Built In"]},
+    {"company": "docusign", "companyDisplay": "DocuSign", "priority": 3, "addedFrom": ["RepVue", "Built In"]},
+    {"company": "twilio", "companyDisplay": "Twilio", "priority": 2, "addedFrom": ["RepVue", "Built In"]},
+    {"company": "klaviyo", "companyDisplay": "Klaviyo", "priority": 2, "addedFrom": ["RepVue", "Built In"]},
+    {"company": "toast", "companyDisplay": "Toast", "priority": 2, "addedFrom": ["RepVue", "Built In"]},
+    {"company": "zendesk", "companyDisplay": "Zendesk", "priority": 3, "addedFrom": ["RepVue", "Built In"]},
+    {"company": "confluent", "companyDisplay": "Confluent", "priority": 2, "addedFrom": ["RepVue", "Built In"]},
+    {"company": "dropbox", "companyDisplay": "Dropbox", "priority": 3, "addedFrom": ["Built In"]},
+    {"company": "elastic", "companyDisplay": "Elastic", "priority": 2, "addedFrom": ["RepVue", "Built In"]}
+  ],
+  "_default_roles": [
+    {"role": "enterprise-ae", "roleDisplay": "Enterprise AE"},
+    {"role": "mid-market-ae", "roleDisplay": "Mid-Market AE"},
+    {"role": "commercial-ae", "roleDisplay": "Commercial AE"},
+    {"role": "bdr", "roleDisplay": "BDR"},
+    {"role": "sdr", "roleDisplay": "SDR"},
+    {"role": "sales-leadership", "roleDisplay": "Sales Leadership"}
+  ]
+}

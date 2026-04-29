@@ -1,0 +1,22 @@
+# Operational state — local to each machine running the engine.
+# Skill #1 (seo-orchestrator) initializes this file on first run if missing.
+seo-engine-state.json
+seo-engine-status.md
+
+# Source data + scratch — heavy + frequently rewritten, not for public repo.
+companies/
+.scratch/
+
+# Distribution drafts — local-only operator notes, not meant for public repo.
+distribution/
+
+# QA failure quarantines — internal diagnostic, not for public repo.
+qa-failures/
+
+# Alerts — auto-pause notifications and incident logs, local only.
+alerts/
+
+# Allow these (non-default — git defaults to including unless ignored above):
+!seed-companies.json
+!README.md
+!.gitignore

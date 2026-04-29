@@ -1,22 +1,22 @@
 ---
-// CompanyPageLayout — wraps BaseLayout. Used by the sales-interview-prep
-// content collection via the dynamic route at
-//   src/pages/sales-interview-prep/[company]/[role].astro
+// CompanyPageLayout — wraps BaseLayout. Architecture #4.
 //
-// Architecture:
-//  - All structured data (questions, process, compensation, faqs,
-//    culturalClaims) lives in MDX frontmatter. This layout renders each
-//    section programmatically from those props.
-//  - MDX body holds only the hero lede prose. The route renders <Content />
-//    inside our default <slot />, which we place inside slot-hero so the
-//    lede appears under the H1.
-//  - This pattern was chosen because top-level <Fragment slot="..."> blocks
-//    in MDX body do NOT propagate as named slots to a grandparent layout
-//    when rendered via <Content />. Verified empirically.
+// Eight sections, each rendered ONLY when the backing data is present.
+// Empty sections collapse fully (no header, no whitespace gap):
+//   1. companyHero          — H1 + lede prose (default <slot />), always
+//   2. processSection       — interview rounds (omits if process empty)
+//   3. compSection          — Levels.fyi pay table, always
+//   4. lookingForSection    — "What {co} looks for" from Wayback (omits if empty)
+//   5. redditSaysSection    — "What r/sales says" advice quotes (omits if empty)
+//   6. prepSection          — LLM-generated prep narrative, always
+//   7. faqSection           — auto-generated FAQ (omits if empty)
+//   8. ctaSection           — Noruma UTM-stamped link, always
 //
-// Brand chrome (nav, hero pitch, GA4, UTM cookies, footer CTA, Inter font,
-// color tokens) lives entirely in BaseLayout. This file owns only the
-// company-page section structure plus extra JSON-LD.
+// Optional: questions[] populates a "Reports from r/sales" section beneath
+// redditSaysSection — appears only when verbatim first-person reports exist.
+//
+// All structured data lives in MDX frontmatter (validated by Zod). Layout
+// reads frontmatter and renders. MDX body holds only the lede prose.
 
 import BaseLayout from './BaseLayout.astro';
 
@@ -32,15 +32,18 @@ const {
   companyDisplay,
   role,
   roleDisplay,
-  questions = [],
-  process = [],
   compensation,
+  process = [],
+  jobRequirements = [],
+  redditQuotes = [],
+  questions = [],
   faqs = [],
   culturalClaims = [],
-  ctaCopy,
+  prepSection,
   diagramSvg,
   screenshotPath,
   screenshotAlt,
+  ctaCopy,
 } = frontmatter ?? {};
 
 const slugForUtm = company && role ? `${company}-${role}` : undefined;
@@ -50,19 +53,12 @@ const canonicalUrl = canonical || new URL(Astro.url.pathname, baseSite).toString
 const toIso = (d) => (d instanceof Date ? d.toISOString() : new Date(d).toISOString());
 const toIsoDate = (d) => toIso(d).slice(0, 10);
 
-// Sort questions by askedTimes desc, then sourceDate desc.
-const sortedQuestions = [...questions].sort((a, b) => {
-  const ax = a.askedTimes ?? 0;
-  const bx = b.askedTimes ?? 0;
-  if (bx !== ax) return bx - ax;
-  return (b.sourceDate ?? '').localeCompare(a.sourceDate ?? '');
-});
-
 const fmtMoney = (n, currency = 'USD') => {
+  if (n == null) return '';
   if (currency !== 'USD') return `${n.toLocaleString()} ${currency}`;
   if (n >= 1_000_000) {
     const v = n / 1_000_000;
-    return `$${(v % 1 === 0 ? v.toFixed(0) : v.toFixed(1))}M`;
+    return `$${v % 1 === 0 ? v.toFixed(0) : v.toFixed(1)}M`;
   }
   if (n >= 1_000) return `$${Math.round(n / 1_000)}k`;
   return `$${n}`;
@@ -71,21 +67,15 @@ const range = (lo, hi, currency) => `${fmtMoney(lo, currency)}\u2013${fmtMoney(h
 
 const ctaUrl = `https://noruma.ai/?noruma_utm_source=learn&noruma_utm_medium=organic&noruma_utm_campaign=${slugForUtm ?? 'index'}`;
 
-// Find a representative process source URL.
-const processSource = process.find((r) => r.sourceUrl);
-
-// Extra JSON-LD beyond the Article block BaseLayout already emits.
-const faqJsonLd = sortedQuestions.length
+// FAQ JSON-LD generated from frontmatter.faqs
+const faqJsonLd = faqs.length
   ? {
       '@context': 'https://schema.org',
       '@type': 'FAQPage',
-      mainEntity: sortedQuestions.map((q) => ({
+      mainEntity: faqs.map((f) => ({
         '@type': 'Question',
-        name: q.question,
-        acceptedAnswer: {
-          '@type': 'Answer',
-          text: q.sourceQuote ?? `Sourced from ${q.sourceType} (${q.sourceUrl}).`,
-        },
+        name: f.q,
+        acceptedAnswer: { '@type': 'Answer', text: f.a },
       })),
     }
   : null;
@@ -121,6 +111,10 @@ const orgJsonLd = {
   url: 'https://noruma.ai',
   description: 'Real-time AI interview copilot for tech sales professionals.',
 };
+
+// "process[0].round === 0" means an aggregate round-count summary, not a real
+// per-round structure. Render it as a callout, not a table.
+const isAggregateProcess = process.length === 1 && process[0].round === 0;
 ---
 <BaseLayout
   title={title}
@@ -140,6 +134,7 @@ const orgJsonLd = {
       {roleDisplay && <span>{roleDisplay}</span>}
     </nav>
 
+    {/* 1. companyHero — H1 + lede from MDX default slot */}
     <section class="slot slot-hero">
       <slot />
       {lastUpdated && (
@@ -147,35 +142,48 @@ const orgJsonLd = {
       )}
     </section>
 
+    {/* 2. processSection — omitted when empty */}
     {process.length > 0 && (
       <section class="slot slot-process">
         <h2>Interview process</h2>
-        <table>
-          <thead>
-            <tr>
-              <th>Round</th>
-              <th>Format</th>
-              <th>Duration</th>
-              <th>Who you meet</th>
-              <th>Focus</th>
-            </tr>
-          </thead>
-          <tbody>
-            {process.map((r) => (
-              <tr>
-                <td>{r.round}</td>
-                <td>{r.format}{r.name ? ` (${r.name})` : ''}</td>
-                <td>{r.durationMin ? `${r.durationMin} min` : ''}</td>
-                <td>{r.who ?? ''}</td>
-                <td>{r.focus ?? ''}</td>
-              </tr>
-            ))}
-          </tbody>
-        </table>
-        {processSource && (
-          <p class="cite">
-            Process sourced from <a href={processSource.sourceUrl}>{processSource.sourceType ?? 'public posting'}</a>.
-          </p>
+        {isAggregateProcess ? (
+          <div class="callout">
+            <p><strong>{process[0].name}.</strong> {process[0].focus}</p>
+            <p class="cite">
+              Sourced from <a href={process[0].sourceUrl}>{process[0].sourceType}</a>.
+            </p>
+          </div>
+        ) : (
+          <>
+            <table>
+              <thead>
+                <tr>
+                  <th>Round</th>
+                  <th>Format</th>
+                  <th>Duration</th>
+                  <th>Who you meet</th>
+                  <th>Focus</th>
+                </tr>
+              </thead>
+              <tbody>
+                {process.map((r) => (
+                  <tr>
+                    <td>{r.round}</td>
+                    <td>{r.format}{r.name ? ` (${r.name})` : ''}</td>
+                    <td>{r.durationMin ? `${r.durationMin} min` : ''}</td>
+                    <td>{r.who ?? ''}</td>
+                    <td>{r.focus ?? ''}</td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+            {process[0].sourceUrl && (
+              <p class="cite">
+                Process sourced from{' '}
+                <a href={process[0].sourceUrl}>{process[0].sourceType}</a>.
+              </p>
+            )}
+          </>
         )}
         {diagramSvg && (
           <figure class="diagram">
@@ -185,24 +193,7 @@ const orgJsonLd = {
       </section>
     )}
 
-    {sortedQuestions.length > 0 && (
-      <section class="slot slot-questions">
-        <h2>Questions and sources</h2>
-        <ol class="questions">
-          {sortedQuestions.map((q) => (
-            <li>
-              <strong>{q.question}</strong>{' '}
-              Sourced from <a href={q.sourceUrl}>{q.sourceType}</a>
-              {q.sourceDate ? ` (${q.sourceDate})` : ''}.
-              {q.sourceQuote && (
-                <blockquote>{q.sourceQuote}</blockquote>
-              )}
-            </li>
-          ))}
-        </ol>
-      </section>
-    )}
-
+    {/* 3. compSection — always present (compensation is required) */}
     {compensation && (
       <section class="slot slot-comp">
         <h2>Compensation benchmarks</h2>
@@ -211,21 +202,83 @@ const orgJsonLd = {
             <tr><th>Metric</th><th>Range</th></tr>
           </thead>
           <tbody>
-            <tr><td>Base</td><td>{range(compensation.baseMin, compensation.baseMax, compensation.currency)}</td></tr>
-            <tr><td>OTE</td><td>{range(compensation.oteMin, compensation.oteMax, compensation.currency)}</td></tr>
-            <tr><td>Quota</td><td>{range(compensation.quotaMin, compensation.quotaMax, compensation.currency)}</td></tr>
+            <tr><td>Base salary</td><td>{range(compensation.baseMin, compensation.baseMax, compensation.currency)}</td></tr>
+            {compensation.oteMin && compensation.oteMax && (
+              <tr><td>OTE</td><td>{range(compensation.oteMin, compensation.oteMax, compensation.currency)}</td></tr>
+            )}
+            {compensation.quotaMin && compensation.quotaMax && (
+              <tr><td>Quota</td><td>{range(compensation.quotaMin, compensation.quotaMax, compensation.currency)}</td></tr>
+            )}
           </tbody>
         </table>
         <p class="cite">
           Source: <a href={compensation.sourceUrl}>{compensation.source}</a>, as of {compensation.asOfDate}, sample size {compensation.sampleSize} reps.
+          {!compensation.quotaMin && <> Quota not publicly disclosed.</>}
         </p>
       </section>
     )}
 
+    {/* 4. lookingForSection — omitted when empty */}
+    {jobRequirements.length > 0 && (
+      <section class="slot slot-looking-for">
+        <h2>What {companyDisplay} looks for</h2>
+        <ul class="bullets">
+          {jobRequirements.map((j) => (
+            <li>
+              {j.text}{' '}
+              <a class="src-tag" href={j.sourceUrl}>(archived posting)</a>
+            </li>
+          ))}
+        </ul>
+      </section>
+    )}
+
+    {/* 5. redditSaysSection — omitted when empty */}
+    {redditQuotes.length > 0 && (
+      <section class="slot slot-reddit-says">
+        <h2>What r/sales says</h2>
+        <p class="lead">Community-shared advice on interviewing at {companyDisplay}, sourced from public r/sales threads. Quoted verbatim; usernames stripped.</p>
+        {redditQuotes.map((q) => (
+          <blockquote class="reddit-quote">
+            <p>{q.quote}</p>
+            <footer>
+              <a href={q.sourceUrl}>r/sales{q.sourceDate ? ` · ${q.sourceDate}` : ''}</a>
+              {q.threadTitle && <> · <span class="thread-title">{q.threadTitle}</span></>}
+            </footer>
+          </blockquote>
+        ))}
+      </section>
+    )}
+
+    {/* Optional: Reports from r/sales — verbatim questions, only when present */}
+    {questions.length > 0 && (
+      <section class="slot slot-reports">
+        <h2>Reports from r/sales</h2>
+        <p class="lead">First-person interview question reports from r/sales threads.</p>
+        <ol class="questions">
+          {questions.map((q) => (
+            <li>
+              <strong>{q.question}</strong>{' '}
+              <a class="src-tag" href={q.sourceUrl}>(source{q.sourceDate ? `, ${q.sourceDate}` : ''})</a>
+            </li>
+          ))}
+        </ol>
+      </section>
+    )}
+
+    {/* 6. prepSection — LLM-generated narrative; always present */}
+    {prepSection && (
+      <section class="slot slot-prep">
+        <h2>How to prep</h2>
+        <div class="prep-body" set:html={prepSection} />
+      </section>
+    )}
+
+    {/* Cultural claims — inline if any */}
     {culturalClaims.length > 0 && (
       <section class="slot slot-claims">
         <h2>What candidates report</h2>
-        <ul class="claims">
+        <ul class="bullets">
           {culturalClaims.map((c) => (
             <li>
               {c.claim}. (<a href={c.sourceUrl}>{c.sourceLabel}</a>)
@@ -235,6 +288,7 @@ const orgJsonLd = {
       </section>
     )}
 
+    {/* 7. faqSection — omitted when empty */}
     {faqs.length > 0 && (
       <section class="slot slot-faq">
         <h2>FAQ</h2>
@@ -250,6 +304,7 @@ const orgJsonLd = {
       </section>
     )}
 
+    {/* 8. ctaSection — always present */}
     <section class="slot slot-cta">
       <p>
         {ctaCopy ?? `Practice these questions live with `}
@@ -281,16 +336,12 @@ const orgJsonLd = {
     color: var(--text-tertiary, #9CA5B2);
     text-decoration: none;
   }
-  .crumbs a:hover {
-    color: var(--accent, #00E0CC);
-  }
+  .crumbs a:hover { color: var(--accent, #00E0CC); }
   .slot {
     padding: 32px 0;
     border-bottom: 1px solid var(--border, rgba(255, 255, 255, 0.08));
   }
-  .slot:last-of-type {
-    border-bottom: none;
-  }
+  .slot:last-of-type { border-bottom: none; }
   .slot h2 {
     color: var(--accent, #00E0CC);
     font-size: 22px;
@@ -303,6 +354,11 @@ const orgJsonLd = {
     color: var(--text-tertiary, #9CA5B2);
     font-size: 13px;
     margin: 16px 0 0;
+  }
+  .lead {
+    color: var(--text-secondary, #C5CCD6);
+    font-size: 15px;
+    margin: 0 0 18px;
   }
   table {
     border-collapse: collapse;
@@ -328,9 +384,22 @@ const orgJsonLd = {
     color: var(--text-tertiary, #9CA5B2);
     margin: 8px 0 0;
   }
-  .diagram {
-    margin: 24px 0 0;
+  .src-tag {
+    color: var(--text-tertiary, #9CA5B2);
+    font-size: 0.85em;
+    text-decoration: none;
   }
+  .src-tag:hover { color: var(--accent, #00E0CC); }
+  .callout {
+    background: var(--surface-1, #111318);
+    border: 1px solid var(--border, rgba(255, 255, 255, 0.08));
+    border-radius: 8px;
+    padding: 16px 20px;
+    margin: 0 0 16px;
+  }
+  .callout p { margin: 0 0 8px; color: var(--text-secondary, #C5CCD6); }
+  .callout p:last-child { margin: 0; }
+  .diagram { margin: 24px 0 0; }
   .diagram img {
     width: 100%;
     height: auto;
@@ -338,31 +407,43 @@ const orgJsonLd = {
     border: 1px solid var(--border, rgba(255, 255, 255, 0.08));
     background: var(--surface-1, #111318);
   }
-  .questions {
+  .bullets {
     padding-left: 22px;
-  }
-  .questions li {
-    margin: 14px 0;
     color: var(--text-secondary, #C5CCD6);
   }
-  .questions li strong {
-    color: var(--text, #F7F8FB);
-    font-weight: 600;
-  }
-  .questions blockquote {
-    margin: 8px 0 0;
-    padding: 8px 14px;
+  .bullets li { margin: 10px 0; }
+  .reddit-quote {
+    margin: 16px 0;
+    padding: 14px 18px;
     border-left: 2px solid var(--accent, #00E0CC);
     background: var(--surface-1, #111318);
-    color: var(--text-secondary, #C5CCD6);
-    font-size: 0.95em;
     border-radius: 4px;
   }
-  .claims {
+  .reddit-quote p {
+    margin: 0 0 8px;
+    color: var(--text-secondary, #C5CCD6);
+  }
+  .reddit-quote footer {
+    font-size: 13px;
+    color: var(--text-tertiary, #9CA5B2);
+  }
+  .reddit-quote footer a {
+    color: var(--text-tertiary, #9CA5B2);
+    text-decoration: none;
+  }
+  .reddit-quote footer a:hover { color: var(--accent, #00E0CC); }
+  .reddit-quote .thread-title { font-style: italic; }
+  .questions {
     padding-left: 22px;
     color: var(--text-secondary, #C5CCD6);
   }
-  .claims li { margin: 8px 0; }
+  .questions li { margin: 14px 0; }
+  .questions li strong { color: var(--text, #F7F8FB); font-weight: 600; }
+  .prep-body {
+    color: var(--text-secondary, #C5CCD6);
+  }
+  .prep-body :global(p) { margin: 0 0 14px; }
+  .prep-body :global(strong) { color: var(--text, #F7F8FB); }
   .faq-item { margin: 0 0 24px; }
   .faq-item h3 {
     font-size: 17px;

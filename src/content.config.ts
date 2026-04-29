@@ -12,46 +12,48 @@ const seoSchema = z.object({
 });
 
 // sales-interview-prep — programmatic company x role pages.
-// Source: skill #2 (company-source) writes data/companies/<company>/<role>.json.
-// Build:  skill #4 (company-page-build) renders that JSON to an MDX file at
-//         src/content/sales-interview-prep/<company>/<role>.mdx and runs
-//         skill #3 (page-qa-gate). On pass -> skill #5 commits + pushes.
-//         On fail -> quarantine to data/qa-failures/<slug>.md.
-// Route:  src/pages/sales-interview-prep/[company]/[role].astro splits entry.id
-//         on "/" to derive params, wraps <Content /> in CompanyPageLayout.
+// Architecture #4: data-point-driven, no per-company operator overlay.
 //
-// Architecture: structured data lives in frontmatter; the layout renders all
-// sections (process table, question list, comp table, FAQ, CTA) from props.
-// MDX body holds ONLY the hero lede prose, rendered into the default <slot />.
-// Slot routing for fragment-named slots through <Content /> doesn't propagate
-// to the grandparent layout, so we keep all section structure in props.
-const sourcedQuestion = z.object({
-  question: z.string().min(1),
+// Source: skill #2 (company-source) writes data/companies/<company>/<role>.json
+//         from Levels.fyi (comp), Wayback (archived job posts), Reddit (advice).
+// Build:  skill #4 (company-page-build) emits MDX + SVG, runs LLM gen for the
+//         prepSection, then skill #3 (page-qa-gate) verifies.
+// Layout: src/layouts/CompanyPageLayout.astro renders 8 sections from props,
+//         omitting any whose backing data is empty.
+//
+// QA contract:
+//   - >= 5 datapoints across {compDataPoints, jobRequirements, redditQuotes,
+//     processRounds, faqs} — each with a citation URL
+//   - >= 2 distinct citation domains across all datapoints (no single-source pages)
+//   - Specificity ratio >= 0.015 over rendered body
+//   - Word count 1200-2500
+//   - All 4 schema types present (Article + FAQPage + BreadcrumbList + Organization)
+//   - Banlist + banned-opener regex clean
+//   - Visual assets exist (diagram SVG + screenshot WebP/AVIF/PNG/JPG)
+
+const SOURCE_TYPES = ['levels', 'wayback', 'reddit', 'youtube', 'other'] as const;
+
+const sourcedItem = z.object({
+  text: z.string().min(1),
   sourceUrl: z.string().url(),
-  sourceType: z.enum(['reddit', 'repvue', 'job_posting', 'youtube', 'wayback', 'other']),
+  sourceType: z.enum(SOURCE_TYPES),
   sourceDate: z.string().optional(),
-  sourceQuote: z.string().optional(),
-  askedTimes: z.number().int().nonnegative().optional(),
 });
 
-const processRound = z.object({
-  round: z.number().int().positive(),
-  name: z.string().min(1),
-  format: z.string().min(1),
-  durationMin: z.number().int().positive().optional(),
-  who: z.string().optional(),
-  focus: z.string().optional(),
-  sourceUrl: z.string().url().optional(),
-  sourceType: z.enum(['reddit', 'repvue', 'job_posting', 'youtube', 'wayback', 'other']).optional(),
+const compDataPoint = z.object({
+  metric: z.enum(['baseMin', 'baseMax', 'oteMin', 'oteMax', 'quotaMin', 'quotaMax', 'sampleSize', 'medianBase', 'commission']),
+  value: z.number().nonnegative(),
+  currency: z.string().default('USD'),
 });
 
+// Compensation block: required (every page must have at least Levels.fyi data)
 const compensation = z.object({
   baseMin: z.number().int().positive(),
   baseMax: z.number().int().positive(),
-  oteMin: z.number().int().positive(),
-  oteMax: z.number().int().positive(),
-  quotaMin: z.number().int().positive(),
-  quotaMax: z.number().int().positive(),
+  oteMin: z.number().int().positive().optional(),
+  oteMax: z.number().int().positive().optional(),
+  quotaMin: z.number().int().positive().optional(),
+  quotaMax: z.number().int().positive().optional(),
   currency: z.string().default('USD'),
   source: z.string().min(1),
   sourceUrl: z.string().url(),
@@ -59,16 +61,58 @@ const compensation = z.object({
   sampleSize: z.number().int().positive(),
 });
 
+// Process round (optional — page omits the section when array is empty)
+const processRound = z.object({
+  round: z.number().int().positive(),
+  name: z.string().min(1),
+  format: z.string().optional(),
+  durationMin: z.number().int().positive().optional(),
+  who: z.string().optional(),
+  focus: z.string().optional(),
+  sourceUrl: z.string().url(),
+  sourceType: z.enum(SOURCE_TYPES),
+});
+
+// "What {company} looks for" — extracted bullets from Wayback-archived JD
+const jobRequirement = z.object({
+  text: z.string().min(1),
+  sourceUrl: z.string().url(),
+  sourceType: z.enum(SOURCE_TYPES).default('wayback'),
+  archivedDate: z.string().optional(),
+});
+
+// "What r/sales says" — community-advice quotes
+const redditQuote = z.object({
+  quote: z.string().min(30),
+  sourceUrl: z.string().url(),
+  sourceDate: z.string().optional(),
+  threadTitle: z.string().optional(),
+});
+
+// FAQ — auto-generated, mix of templated + Reddit-derived
 const faqEntry = z.object({
   q: z.string().min(1),
   a: z.string().min(1),
   sourceUrl: z.string().url().optional(),
+  derivation: z.enum(['templated', 'reddit', 'jd']).default('templated'),
 });
 
+// Cultural claim with mandatory citation
 const culturalClaim = z.object({
   claim: z.string().min(1),
   sourceUrl: z.string().url(),
   sourceLabel: z.string().min(1),
+});
+
+// Optional verbatim-questions section ("Reports from r/sales") — only when
+// real first-person reports exist on Reddit. Empty array means section omitted.
+const sourcedQuestion = z.object({
+  question: z.string().min(1),
+  sourceUrl: z.string().url(),
+  sourceType: z.enum(SOURCE_TYPES),
+  sourceDate: z.string().optional(),
+  sourceQuote: z.string().optional(),
+  askedTimes: z.number().int().nonnegative().optional(),
 });
 
 const salesInterviewPrepSchema = z.object({
@@ -82,14 +126,27 @@ const salesInterviewPrepSchema = z.object({
   lastUpdated: z.coerce.date(),
   canonical: z.string().url().optional(),
   ogImage: z.string().optional(),
-  diagramSvg: z.string(),
+  diagramSvg: z.string().optional(),
   screenshotPath: z.string(),
   screenshotAlt: z.string(),
-  questions: z.array(sourcedQuestion).min(5),
-  process: z.array(processRound).min(1),
-  compensation,
-  faqs: z.array(faqEntry).default([]),
+
+  // Required data sections
+  compensation,                                                  // required
+  prepSection: z.string().min(50),                               // LLM-generated, required
+
+  // Optional data sections (layout omits when empty)
+  process: z.array(processRound).default([]),                    // omit section if empty
+  jobRequirements: z.array(jobRequirement).default([]),          // omit section if empty
+  redditQuotes: z.array(redditQuote).default([]),                // omit section if empty
+  questions: z.array(sourcedQuestion).default([]),               // optional verbatim reports
+  faqs: z.array(faqEntry).default([]),                           // omit section if empty
   culturalClaims: z.array(culturalClaim).default([]),
+
+  // Provenance for QA gate datapoint count + domain diversity check.
+  // Bare domains (e.g. "levels.fyi", "reddit.com") not full URLs — citations
+  // live inline on each section's items.
+  datapointSources: z.array(z.string().min(1)).default([]),
+
   ctaCopy: z.string().optional(),
 });
 

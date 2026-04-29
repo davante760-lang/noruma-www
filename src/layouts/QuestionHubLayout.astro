@@ -1,0 +1,146 @@
+---
+import BaseLayout from './BaseLayout.astro';
+
+const { frontmatter } = Astro.props;
+const {
+  title, description, canonical, ogImage, publishDate, lastUpdated,
+  role, roleDisplay, intro, themes = [], companiesCovered = [], faqs = [],
+} = frontmatter ?? {};
+
+const slugForUtm = `questions-${role}`;
+const baseSite = Astro.site ?? new URL('https://learn.noruma.ai');
+const canonicalUrl = canonical || new URL(Astro.url.pathname, baseSite).toString();
+const ctaUrl = `https://noruma.ai/?noruma_utm_source=learn&noruma_utm_medium=organic&noruma_utm_campaign=${slugForUtm}`;
+const toIsoDate = (d) => (d instanceof Date ? d.toISOString() : new Date(d).toISOString()).slice(0, 10);
+
+const articleJsonLd = {
+  '@context': 'https://schema.org', '@type': 'Article',
+  headline: title, description, url: canonicalUrl,
+  datePublished: publishDate ? new Date(publishDate).toISOString() : undefined,
+  dateModified: lastUpdated ? new Date(lastUpdated).toISOString() : undefined,
+};
+const breadcrumbJsonLd = {
+  '@context': 'https://schema.org', '@type': 'BreadcrumbList',
+  itemListElement: [
+    { '@type': 'ListItem', position: 1, name: 'Interview questions', item: new URL('/interview-questions/', baseSite).toString() },
+    { '@type': 'ListItem', position: 2, name: roleDisplay, item: canonicalUrl },
+  ],
+};
+const faqJsonLd = faqs.length ? {
+  '@context': 'https://schema.org', '@type': 'FAQPage',
+  mainEntity: faqs.map(f => ({ '@type': 'Question', name: f.q, acceptedAnswer: { '@type': 'Answer', text: f.a } })),
+} : null;
+const orgJsonLd = {
+  '@context': 'https://schema.org', '@type': 'Organization',
+  name: 'Noruma', url: 'https://noruma.ai',
+  description: 'Real-time AI copilot for live sales interviews.',
+};
+---
+<BaseLayout title={title} description={description} canonical={canonicalUrl} ogImage={ogImage} schemaType="Article" publishDate={publishDate} slug={slugForUtm}>
+  <div class="qhub-page">
+    <nav class="crumbs" aria-label="Breadcrumb">
+      <a href="/interview-questions/">Interview questions</a> / <span>{roleDisplay}</span>
+    </nav>
+
+    <section class="slot slot-hero">
+      <slot />
+      {lastUpdated && <p class="last-updated">Last updated {toIsoDate(lastUpdated)}</p>}
+    </section>
+
+    {intro && (
+      <section class="slot">
+        <div set:html={intro.split('\n\n').map(p => `<p>${p}</p>`).join('')} />
+      </section>
+    )}
+
+    <aside class="cta-aside">
+      <h3>Knowing the questions is prep. Answering them live is execution.</h3>
+      <p>Noruma populates the perfect answer for every question in real time, drawn from your own deal stories. The list below tells you what gets asked. Noruma helps you answer it.</p>
+      <a href={ctaUrl}>Try Noruma free &rarr;</a>
+    </aside>
+
+    {themes.map((theme) => (
+      <section class="slot theme">
+        <h2>{theme.theme}</h2>
+        <ol class="questions">
+          {theme.questions.map(q => (
+            <li>
+              <strong>{q.question}</strong>
+              {(q.sourceCompany || q.sourceUrl) && (
+                <span class="meta">
+                  {q.sourceCompany && <> Reported at <a href={`/sales-interview-prep/${q.sourceCompany}/${role}`}>{q.sourceCompany.replace(/-/g, ' ')}</a></>}
+                  {q.sourceUrl && <> · <a href={q.sourceUrl}>source</a></>}
+                  {q.sourceDate && <> · {q.sourceDate}</>}
+                </span>
+              )}
+            </li>
+          ))}
+        </ol>
+      </section>
+    ))}
+
+    {companiesCovered.length > 0 && (
+      <section class="slot">
+        <h2>Companies covered in this question set</h2>
+        <ul class="bullets">
+          {companiesCovered.map(c => (
+            <li><a href={`/sales-interview-prep/${c.company}/${role}`}>{c.companyDisplay} {roleDisplay} interview prep</a></li>
+          ))}
+        </ul>
+      </section>
+    )}
+
+    {faqs.length > 0 && (
+      <section class="slot">
+        <h2>FAQ</h2>
+        {faqs.map(f => (
+          <article class="faq-item">
+            <h3>{f.q}</h3>
+            <p>{f.a}</p>
+          </article>
+        ))}
+      </section>
+    )}
+
+    <section class="slot slot-cta">
+      <p>
+        These are the questions {roleDisplay} candidates actually face. <a href={ctaUrl}>Noruma populates the perfect answer for every question in real time</a>, drawn from your prep and your own deal stories. Audio is processed in real time and not retained unless you opt in.
+      </p>
+    </section>
+  </div>
+
+  <script type="application/ld+json" set:html={JSON.stringify(articleJsonLd)} />
+  <script type="application/ld+json" set:html={JSON.stringify(breadcrumbJsonLd)} />
+  {faqJsonLd && <script type="application/ld+json" set:html={JSON.stringify(faqJsonLd)} />}
+  <script type="application/ld+json" set:html={JSON.stringify(orgJsonLd)} />
+</BaseLayout>
+
+<style>
+  .qhub-page { display: flex; flex-direction: column; }
+  .crumbs { font-size: 13px; color: var(--text-tertiary, #9CA5B2); margin-bottom: 8px; }
+  .crumbs a { color: var(--text-tertiary, #9CA5B2); text-decoration: none; }
+  .crumbs a:hover { color: var(--accent, #00E0CC); }
+  .slot { padding: 32px 0; border-bottom: 1px solid var(--border, rgba(255,255,255,0.08)); }
+  .slot:last-of-type { border-bottom: none; }
+  .slot h2 { color: var(--accent, #00E0CC); font-size: 22px; font-weight: 600; margin: 0 0 18px; }
+  .slot-hero { padding-top: 0; }
+  .last-updated { color: var(--text-tertiary, #9CA5B2); font-size: 13px; margin: 16px 0 0; }
+  .slot p { color: var(--text-secondary, #C5CCD6); margin: 0 0 14px; }
+  .questions { padding-left: 22px; color: var(--text-secondary, #C5CCD6); }
+  .questions li { margin: 14px 0; }
+  .questions li strong { color: var(--text, #F7F8FB); font-weight: 600; display: block; margin-bottom: 4px; }
+  .meta { font-size: 13px; color: var(--text-tertiary, #9CA5B2); }
+  .meta a { color: var(--accent, #00E0CC); text-decoration: none; }
+  .bullets { padding-left: 22px; color: var(--text-secondary, #C5CCD6); }
+  .bullets li { margin: 8px 0; }
+  .bullets a { color: var(--accent, #00E0CC); }
+  .faq-item { margin: 0 0 24px; }
+  .faq-item h3 { font-size: 17px; font-weight: 600; margin: 0 0 6px; color: var(--text, #F7F8FB); }
+  .faq-item p { margin: 0; color: var(--text-secondary, #C5CCD6); }
+  .slot-cta { background: linear-gradient(180deg, rgba(0,224,204,0.08), rgba(0,224,204,0.02)); border: 1px solid rgba(0,224,204,0.25); border-radius: 12px; padding: 24px 28px; margin: 32px 0 0; }
+  .slot-cta p { margin: 0; color: var(--text-secondary, #C5CCD6); }
+  .cta-aside { background: linear-gradient(90deg, rgba(0,224,204,0.05), rgba(0,224,204,0.01)); border-left: 3px solid var(--accent, #00E0CC); border-radius: 6px; padding: 14px 18px; margin: 12px 0 0; }
+  .cta-aside h3 { color: var(--text, #F7F8FB); font-size: 15px; font-weight: 600; margin: 0 0 6px; }
+  .cta-aside p { color: var(--text-secondary, #C5CCD6); font-size: 14px; margin: 0 0 8px; }
+  .cta-aside a { color: var(--accent, #00E0CC); font-size: 13px; font-weight: 500; text-decoration: none; }
+</style>

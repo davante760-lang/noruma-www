@@ -1,0 +1,18 @@
+---
+import { getCollection, render } from 'astro:content';
+import SalaryPageLayout from '../../../layouts/SalaryPageLayout.astro';
+
+export async function getStaticPaths() {
+  const entries = await getCollection('salaries');
+  return entries.map((entry) => {
+    const [company, role] = entry.id.split('/');
+    return { params: { company, role }, props: { entry } };
+  });
+}
+
+const { entry } = Astro.props;
+const { Content } = await render(entry);
+---
+<SalaryPageLayout frontmatter={entry.data}>
+  <Content />
+</SalaryPageLayout>

@@ -1,0 +1,212 @@
+---
+const { title, description, canonical, ogImage, schemaType = 'Article', publishDate, slug } = Astro.props;
+const canonicalUrl = canonical || new URL(Astro.url.pathname, Astro.site).toString();
+const ogImageUrl = ogImage ? new URL(ogImage, Astro.site).toString() : undefined;
+const slugForUtm = slug || (Astro.params && Astro.params.slug) || 'index';
+const cta = `https://noruma.ai/?noruma_utm_source=learn&noruma_utm_medium=organic&noruma_utm_campaign=${slugForUtm}`;
+const jsonLd = {
+  '@context': 'https://schema.org',
+  '@type': schemaType,
+  headline: title,
+  description,
+  datePublished: publishDate,
+  url: canonicalUrl,
+};
+---
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>{title}</title>
+    <meta name="description" content={description} />
+    <link rel="canonical" href={canonicalUrl} />
+    {ogImageUrl && <meta property="og:image" content={ogImageUrl} />}
+    <meta property="og:title" content={title} />
+    <meta property="og:description" content={description} />
+    <meta property="og:url" content={canonicalUrl} />
+    <meta property="og:type" content="article" />
+    <script async src="https://www.googletagmanager.com/gtag/js?id=G-V1Q4SNK3QJ"></script>
+    <script is:inline>
+      window.dataLayer = window.dataLayer || [];
+      function gtag(){dataLayer.push(arguments);}
+      gtag('js', new Date());
+      gtag('consent', 'default', {
+        ad_storage: 'granted',
+        ad_user_data: 'granted',
+        ad_personalization: 'granted',
+        analytics_storage: 'granted'
+      });
+      gtag('config', 'G-V1Q4SNK3QJ', { cookie_domain: '.noruma.ai' });
+      (function() {
+        try {
+          var p = new URLSearchParams(window.location.search);
+          var keys = ['noruma_utm_source','noruma_utm_medium','noruma_utm_campaign','noruma_utm_term','noruma_utm_content','noruma_gclid','gclid'];
+          keys.forEach(function(k) {
+            var v = p.get(k);
+            if (v) {
+              var name = (k === 'gclid') ? 'noruma_gclid' : k;
+              document.cookie = name + '=' + encodeURIComponent(v) + '; path=/; domain=.noruma.ai; max-age=2592000; SameSite=Lax';
+            }
+          });
+        } catch (e) {}
+      })();
+    </script>
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" />
+    <script type="application/ld+json" set:html={JSON.stringify(jsonLd)} />
+    <style>
+      :root {
+        --bg: #0E1016;
+        --surface-1: #111318;
+        --surface-2: #191c22;
+        --border: rgba(255,255,255,0.08);
+        --text: #F7F8FB;
+        --text-secondary: #C5CCD6;
+        --text-tertiary: #9CA5B2;
+        --accent: #00E0CC;
+        --accent-bright: #5EFFE5;
+      }
+      * { box-sizing: border-box; }
+      html { scroll-behavior: smooth; }
+      body {
+        margin: 0;
+        background: var(--bg);
+        color: var(--text);
+        font-family: 'Inter', system-ui, -apple-system, sans-serif;
+        -webkit-font-smoothing: antialiased;
+        line-height: 1.6;
+      }
+      a { color: var(--accent); text-decoration: none; }
+      a:hover { color: var(--accent-bright); }
+      nav.top {
+        position: fixed; left: 50%; top: 20px;
+        transform: translateX(-50%);
+        z-index: 50;
+        display: flex; align-items: center; gap: 12px;
+        background: rgba(14,16,22,0.72);
+        border: 1px solid var(--border);
+        backdrop-filter: blur(12px);
+        -webkit-backdrop-filter: blur(12px);
+        padding: 8px 14px;
+        border-radius: 999px;
+        box-shadow: 0 8px 32px -12px rgba(0,0,0,0.4);
+      }
+      nav.top a.brand {
+        display: flex; align-items: center; gap: 8px;
+        color: var(--text); font-weight: 600; font-size: 14px;
+        letter-spacing: -0.01em; padding: 0 6px;
+      }
+      nav.top .mark {
+        width: 14px; height: 14px; border-radius: 4px;
+        background: var(--accent);
+        box-shadow: 0 0 12px -2px var(--accent);
+      }
+      nav.top a.cta {
+        background: var(--accent); color: #000;
+        padding: 6px 14px; border-radius: 999px;
+        font-weight: 700; font-size: 13px;
+        box-shadow: 0 4px 16px -4px rgba(0,224,204,0.5);
+        transition: background 200ms;
+      }
+      nav.top a.cta:hover { background: var(--accent-bright); color: #000; }
+      main { max-width: 720px; margin: 0 auto; padding: 120px 24px 60px; }
+      .page-hero {
+        display: flex; flex-direction: column; gap: 10px;
+        margin-bottom: 40px; padding: 20px 24px;
+        background: linear-gradient(180deg, rgba(0,224,204,0.06), rgba(0,224,204,0.015));
+        border: 1px solid rgba(0,224,204,0.18);
+        border-radius: 12px;
+      }
+      .page-hero p {
+        margin: 0; font-size: 15px;
+        color: var(--text-secondary); line-height: 1.5;
+      }
+      .page-hero p strong { color: var(--text); font-weight: 600; }
+      .page-hero a.hero-link {
+        font-size: 13px; font-weight: 600;
+        color: var(--accent); align-self: flex-start;
+      }
+      .page-hero a.hero-link:hover { color: var(--accent-bright); }
+      article h1 {
+        font-size: clamp(28px, 4vw, 44px);
+        line-height: 1.15; letter-spacing: -0.02em;
+        margin: 0 0 24px; font-weight: 700; color: var(--text);
+      }
+      article h2 {
+        font-size: 24px; line-height: 1.25; letter-spacing: -0.01em;
+        margin: 48px 0 16px; font-weight: 600; color: var(--text);
+      }
+      article h3 { font-size: 19px; margin: 32px 0 12px; font-weight: 600; color: var(--text); }
+      article p { color: var(--text-secondary); margin: 0 0 18px; font-size: 17px; }
+      article ul, article ol { color: var(--text-secondary); padding-left: 22px; margin: 0 0 18px; }
+      article li { margin: 6px 0; }
+      article strong { color: var(--text); font-weight: 600; }
+      article code {
+        background: var(--surface-2); border: 1px solid var(--border);
+        padding: 2px 6px; border-radius: 4px; font-size: 0.92em;
+      }
+      article pre {
+        background: var(--surface-1); border: 1px solid var(--border);
+        padding: 14px 18px; border-radius: 8px; overflow-x: auto;
+      }
+      article pre code { background: transparent; border: 0; padding: 0; }
+      article blockquote {
+        margin: 24px 0; padding: 12px 18px;
+        border-left: 3px solid var(--accent);
+        background: var(--surface-1); border-radius: 4px;
+      }
+      .footer-cta {
+        margin-top: 64px; padding: 32px;
+        background: var(--surface-1); border: 1px solid var(--border);
+        border-radius: 16px; text-align: center;
+      }
+      .footer-cta h3 { margin: 0 0 8px; font-size: 22px; color: var(--text); font-weight: 600; }
+      .footer-cta p { margin: 0 0 20px; color: var(--text-tertiary); font-size: 15px; }
+      .footer-cta a.cta-btn {
+        display: inline-block;
+        background: var(--accent); color: #000;
+        padding: 10px 22px; border-radius: 999px;
+        font-weight: 700; font-size: 14px;
+        box-shadow: 0 4px 16px -4px rgba(0,224,204,0.5);
+      }
+      .footer-cta a.cta-btn:hover { background: var(--accent-bright); }
+      footer.site {
+        max-width: 720px; margin: 0 auto;
+        padding: 24px 24px 48px;
+        color: var(--text-tertiary); font-size: 13px;
+        text-align: center;
+      }
+      footer.site a { color: var(--text-tertiary); }
+      footer.site a:hover { color: var(--text); }
+    </style>
+  </head>
+  <body>
+    <nav class="top">
+      <a href="https://noruma.ai" class="brand">
+        <span class="mark" aria-hidden="true"></span>
+        Noruma
+      </a>
+      <a href={cta} class="cta">Start trial &rarr;</a>
+    </nav>
+    <main>
+      <header class="page-hero">
+        <p><strong>Noruma</strong> is the world&rsquo;s most advanced interview copilot for tech sales professionals.</p>
+        <a href={cta} class="hero-link">Start your free trial &rarr;</a>
+      </header>
+      <article>
+        <h1>{title}</h1>
+        <slot />
+      </article>
+      <aside class="footer-cta">
+        <h3>Land your next sales role.</h3>
+        <p>Noruma whispers the right answer in your ear during live interviews &mdash; personalized to your real deals.</p>
+        <a href={cta} class="cta-btn">Try Noruma free &rarr;</a>
+      </aside>
+    </main>
+    <footer class="site">
+      <a href="https://noruma.ai">noruma.ai</a> &middot; <a href="https://noruma.ai/privacy">privacy</a>
+    </footer>
+  </body>
+</html>

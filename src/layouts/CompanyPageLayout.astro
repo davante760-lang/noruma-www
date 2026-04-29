@@ -3,18 +3,20 @@
 // content collection via the dynamic route at
 //   src/pages/sales-interview-prep/[company]/[role].astro
 //
-// Route renders:
-//   <CompanyPageLayout frontmatter={entry.data}>
-//     <Content />   <!-- MDX with <Fragment slot="..."> blocks -->
-//   </CompanyPageLayout>
+// Architecture:
+//  - All structured data (questions, process, compensation, faqs,
+//    culturalClaims) lives in MDX frontmatter. This layout renders each
+//    section programmatically from those props.
+//  - MDX body holds only the hero lede prose. The route renders <Content />
+//    inside our default <slot />, which we place inside slot-hero so the
+//    lede appears under the H1.
+//  - This pattern was chosen because top-level <Fragment slot="..."> blocks
+//    in MDX body do NOT propagate as named slots to a grandparent layout
+//    when rendered via <Content />. Verified empirically.
 //
-// MDX body fills six top-level named slots:
-//   companyHero, processTable, questionList, compTable, faq, cta
-//
-// Architecture: this layout owns ONLY company-page structure. Brand chrome
-// (nav, hero pitch, GA4, UTM cookies, footer CTA, fonts, color tokens) lives
-// in BaseLayout. Redesign of chrome -> edit BaseLayout. Redesign of company
-// section structure -> edit this file. Page MDX rarely needs to change.
+// Brand chrome (nav, hero pitch, GA4, UTM cookies, footer CTA, Inter font,
+// color tokens) lives entirely in BaseLayout. This file owns only the
+// company-page section structure plus extra JSON-LD.
 
 import BaseLayout from './BaseLayout.astro';
 
@@ -31,23 +33,53 @@ const {
   role,
   roleDisplay,
   questions = [],
+  process = [],
+  compensation,
+  faqs = [],
+  culturalClaims = [],
+  ctaCopy,
+  diagramSvg,
+  screenshotPath,
+  screenshotAlt,
 } = frontmatter ?? {};
 
 const slugForUtm = company && role ? `${company}-${role}` : undefined;
+const baseSite = Astro.site ?? new URL('https://learn.noruma.ai');
+const canonicalUrl = canonical || new URL(Astro.url.pathname, baseSite).toString();
 
 const toIso = (d) => (d instanceof Date ? d.toISOString() : new Date(d).toISOString());
 const toIsoDate = (d) => toIso(d).slice(0, 10);
 
-const baseSite = Astro.site ?? new URL('https://learn.noruma.ai');
-const canonicalUrl = canonical || new URL(Astro.url.pathname, baseSite).toString();
+// Sort questions by askedTimes desc, then sourceDate desc.
+const sortedQuestions = [...questions].sort((a, b) => {
+  const ax = a.askedTimes ?? 0;
+  const bx = b.askedTimes ?? 0;
+  if (bx !== ax) return bx - ax;
+  return (b.sourceDate ?? '').localeCompare(a.sourceDate ?? '');
+});
 
-// FAQ JSON-LD generated from frontmatter.questions so MDX never duplicates
-// citation data into JSON-LD by hand.
-const faqJsonLd = questions.length
+const fmtMoney = (n, currency = 'USD') => {
+  if (currency !== 'USD') return `${n.toLocaleString()} ${currency}`;
+  if (n >= 1_000_000) {
+    const v = n / 1_000_000;
+    return `$${(v % 1 === 0 ? v.toFixed(0) : v.toFixed(1))}M`;
+  }
+  if (n >= 1_000) return `$${Math.round(n / 1_000)}k`;
+  return `$${n}`;
+};
+const range = (lo, hi, currency) => `${fmtMoney(lo, currency)}\u2013${fmtMoney(hi, currency)}`;
+
+const ctaUrl = `https://noruma.ai/?noruma_utm_source=learn&noruma_utm_medium=organic&noruma_utm_campaign=${slugForUtm ?? 'index'}`;
+
+// Find a representative process source URL.
+const processSource = process.find((r) => r.sourceUrl);
+
+// Extra JSON-LD beyond the Article block BaseLayout already emits.
+const faqJsonLd = sortedQuestions.length
   ? {
       '@context': 'https://schema.org',
       '@type': 'FAQPage',
-      mainEntity: questions.map((q) => ({
+      mainEntity: sortedQuestions.map((q) => ({
         '@type': 'Question',
         name: q.question,
         acceptedAnswer: {
@@ -77,12 +109,7 @@ const breadcrumbJsonLd = {
         }
       : null,
     roleDisplay
-      ? {
-          '@type': 'ListItem',
-          position: 3,
-          name: roleDisplay,
-          item: canonicalUrl,
-        }
+      ? { '@type': 'ListItem', position: 3, name: roleDisplay, item: canonicalUrl }
       : null,
   ].filter(Boolean),
 };
@@ -114,34 +141,121 @@ const orgJsonLd = {
     </nav>
 
     <section class="slot slot-hero">
-      <slot name="companyHero" />
+      <slot />
       {lastUpdated && (
         <p class="last-updated">Last updated {toIsoDate(lastUpdated)}</p>
       )}
     </section>
 
-    <section class="slot slot-process">
-      <h2>Interview process</h2>
-      <slot name="processTable" />
-    </section>
+    {process.length > 0 && (
+      <section class="slot slot-process">
+        <h2>Interview process</h2>
+        <table>
+          <thead>
+            <tr>
+              <th>Round</th>
+              <th>Format</th>
+              <th>Duration</th>
+              <th>Who you meet</th>
+              <th>Focus</th>
+            </tr>
+          </thead>
+          <tbody>
+            {process.map((r) => (
+              <tr>
+                <td>{r.round}</td>
+                <td>{r.format}{r.name ? ` (${r.name})` : ''}</td>
+                <td>{r.durationMin ? `${r.durationMin} min` : ''}</td>
+                <td>{r.who ?? ''}</td>
+                <td>{r.focus ?? ''}</td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+        {processSource && (
+          <p class="cite">
+            Process sourced from <a href={processSource.sourceUrl}>{processSource.sourceType ?? 'public posting'}</a>.
+          </p>
+        )}
+        {diagramSvg && (
+          <figure class="diagram">
+            <img src={diagramSvg} alt={`${companyDisplay} ${roleDisplay} interview funnel diagram`} width="800" height="320" loading="lazy" />
+          </figure>
+        )}
+      </section>
+    )}
 
-    <section class="slot slot-questions">
-      <h2>Questions and sources</h2>
-      <slot name="questionList" />
-    </section>
+    {sortedQuestions.length > 0 && (
+      <section class="slot slot-questions">
+        <h2>Questions and sources</h2>
+        <ol class="questions">
+          {sortedQuestions.map((q) => (
+            <li>
+              <strong>{q.question}</strong>{' '}
+              Sourced from <a href={q.sourceUrl}>{q.sourceType}</a>
+              {q.sourceDate ? ` (${q.sourceDate})` : ''}.
+              {q.sourceQuote && (
+                <blockquote>{q.sourceQuote}</blockquote>
+              )}
+            </li>
+          ))}
+        </ol>
+      </section>
+    )}
 
-    <section class="slot slot-comp">
-      <h2>Compensation benchmarks</h2>
-      <slot name="compTable" />
-    </section>
+    {compensation && (
+      <section class="slot slot-comp">
+        <h2>Compensation benchmarks</h2>
+        <table>
+          <thead>
+            <tr><th>Metric</th><th>Range</th></tr>
+          </thead>
+          <tbody>
+            <tr><td>Base</td><td>{range(compensation.baseMin, compensation.baseMax, compensation.currency)}</td></tr>
+            <tr><td>OTE</td><td>{range(compensation.oteMin, compensation.oteMax, compensation.currency)}</td></tr>
+            <tr><td>Quota</td><td>{range(compensation.quotaMin, compensation.quotaMax, compensation.currency)}</td></tr>
+          </tbody>
+        </table>
+        <p class="cite">
+          Source: <a href={compensation.sourceUrl}>{compensation.source}</a>, as of {compensation.asOfDate}, sample size {compensation.sampleSize} reps.
+        </p>
+      </section>
+    )}
 
-    <section class="slot slot-faq">
-      <h2>FAQ</h2>
-      <slot name="faq" />
-    </section>
+    {culturalClaims.length > 0 && (
+      <section class="slot slot-claims">
+        <h2>What candidates report</h2>
+        <ul class="claims">
+          {culturalClaims.map((c) => (
+            <li>
+              {c.claim}. (<a href={c.sourceUrl}>{c.sourceLabel}</a>)
+            </li>
+          ))}
+        </ul>
+      </section>
+    )}
+
+    {faqs.length > 0 && (
+      <section class="slot slot-faq">
+        <h2>FAQ</h2>
+        {faqs.map((f) => (
+          <article class="faq-item">
+            <h3>{f.q}</h3>
+            <p>
+              {f.a}
+              {f.sourceUrl && <> (Source: <a href={f.sourceUrl}>link</a>)</>}
+            </p>
+          </article>
+        ))}
+      </section>
+    )}
 
     <section class="slot slot-cta">
-      <slot name="cta" />
+      <p>
+        {ctaCopy ?? `Practice these questions live with `}
+        <a href={ctaUrl}>Noruma's real-time interview copilot</a>.
+        Audio is processed in real time and not retained unless you opt in.
+      </p>
     </section>
   </div>
 
@@ -184,13 +298,81 @@ const orgJsonLd = {
     letter-spacing: -0.01em;
     margin: 0 0 18px;
   }
-  .slot-hero {
-    padding-top: 0;
-  }
+  .slot-hero { padding-top: 0; }
   .last-updated {
     color: var(--text-tertiary, #9CA5B2);
     font-size: 13px;
     margin: 16px 0 0;
+  }
+  table {
+    border-collapse: collapse;
+    width: 100%;
+    font-size: 0.95rem;
+    margin: 0 0 8px;
+  }
+  th, td {
+    border-bottom: 1px solid var(--border, rgba(255, 255, 255, 0.08));
+    padding: 0.625rem 0.75rem;
+    text-align: left;
+    color: var(--text-secondary, #C5CCD6);
+  }
+  th {
+    color: var(--text-tertiary, #9CA5B2);
+    font-weight: 500;
+    font-size: 0.875rem;
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+  }
+  .cite {
+    font-size: 13px;
+    color: var(--text-tertiary, #9CA5B2);
+    margin: 8px 0 0;
+  }
+  .diagram {
+    margin: 24px 0 0;
+  }
+  .diagram img {
+    width: 100%;
+    height: auto;
+    border-radius: 8px;
+    border: 1px solid var(--border, rgba(255, 255, 255, 0.08));
+    background: var(--surface-1, #111318);
+  }
+  .questions {
+    padding-left: 22px;
+  }
+  .questions li {
+    margin: 14px 0;
+    color: var(--text-secondary, #C5CCD6);
+  }
+  .questions li strong {
+    color: var(--text, #F7F8FB);
+    font-weight: 600;
+  }
+  .questions blockquote {
+    margin: 8px 0 0;
+    padding: 8px 14px;
+    border-left: 2px solid var(--accent, #00E0CC);
+    background: var(--surface-1, #111318);
+    color: var(--text-secondary, #C5CCD6);
+    font-size: 0.95em;
+    border-radius: 4px;
+  }
+  .claims {
+    padding-left: 22px;
+    color: var(--text-secondary, #C5CCD6);
+  }
+  .claims li { margin: 8px 0; }
+  .faq-item { margin: 0 0 24px; }
+  .faq-item h3 {
+    font-size: 17px;
+    font-weight: 600;
+    margin: 0 0 6px;
+    color: var(--text, #F7F8FB);
+  }
+  .faq-item p {
+    margin: 0;
+    color: var(--text-secondary, #C5CCD6);
   }
   .slot-cta {
     background: linear-gradient(180deg, rgba(0, 224, 204, 0.08), rgba(0, 224, 204, 0.02));
@@ -198,5 +380,9 @@ const orgJsonLd = {
     border-radius: 12px;
     padding: 24px 28px;
     margin: 32px 0 0;
+  }
+  .slot-cta p {
+    margin: 0;
+    color: var(--text-secondary, #C5CCD6);
   }
 </style>

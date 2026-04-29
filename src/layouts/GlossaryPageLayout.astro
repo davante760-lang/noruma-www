@@ -1,0 +1,165 @@
+---
+import BaseLayout from './BaseLayout.astro';
+
+const { frontmatter } = Astro.props;
+const {
+  title, description, canonical, ogImage, publishDate, lastUpdated,
+  term, termDisplay, definition, longExplanation,
+  redditQuotes = [], companiesUsing = [], relatedTerms = [],
+  workedExample, faqs = [],
+} = frontmatter ?? {};
+
+const slugForUtm = term ? `glossary-${term}` : 'glossary';
+const baseSite = Astro.site ?? new URL('https://learn.noruma.ai');
+const canonicalUrl = canonical || new URL(Astro.url.pathname, baseSite).toString();
+const ctaUrl = `https://noruma.ai/?noruma_utm_source=learn&noruma_utm_medium=organic&noruma_utm_campaign=${slugForUtm}`;
+const toIsoDate = (d) => (d instanceof Date ? d.toISOString() : new Date(d).toISOString()).slice(0, 10);
+
+const articleJsonLd = {
+  '@context': 'https://schema.org', '@type': 'DefinedTerm',
+  name: termDisplay, description: definition, url: canonicalUrl,
+  inDefinedTermSet: 'https://learn.noruma.ai/glossary/',
+};
+const breadcrumbJsonLd = {
+  '@context': 'https://schema.org', '@type': 'BreadcrumbList',
+  itemListElement: [
+    { '@type': 'ListItem', position: 1, name: 'Glossary', item: new URL('/glossary/', baseSite).toString() },
+    { '@type': 'ListItem', position: 2, name: termDisplay, item: canonicalUrl },
+  ],
+};
+const faqJsonLd = faqs.length ? {
+  '@context': 'https://schema.org', '@type': 'FAQPage',
+  mainEntity: faqs.map(f => ({ '@type': 'Question', name: f.q, acceptedAnswer: { '@type': 'Answer', text: f.a } })),
+} : null;
+const orgJsonLd = {
+  '@context': 'https://schema.org', '@type': 'Organization',
+  name: 'Noruma', url: 'https://noruma.ai',
+  description: 'Real-time AI copilot for live sales interviews.',
+};
+---
+<BaseLayout title={title} description={description} canonical={canonicalUrl} ogImage={ogImage} schemaType="Article" publishDate={publishDate} slug={slugForUtm}>
+  <div class="glossary-page">
+    <nav class="crumbs" aria-label="Breadcrumb">
+      <a href="/glossary/">Glossary</a> / <span>{termDisplay}</span>
+    </nav>
+
+    <section class="slot slot-hero">
+      <slot />
+      {lastUpdated && <p class="last-updated">Last updated {toIsoDate(lastUpdated)}</p>}
+    </section>
+
+    <section class="slot">
+      <h2>What it means</h2>
+      <p class="lead">{definition}</p>
+      <div set:html={longExplanation.split('\n\n').map(p => `<p>${p}</p>`).join('')} />
+    </section>
+
+    <aside class="cta-aside">
+      <h3>Interviewer asks you to use {termDisplay} on the fly? Noruma populates the answer in real time.</h3>
+      <p>Recall fails under pressure. Noruma surfaces your tailored framework the moment it's relevant in the live conversation.</p>
+      <a href={ctaUrl}>Try Noruma free &rarr;</a>
+    </aside>
+
+    {workedExample && (
+      <section class="slot">
+        <h2>How {termDisplay} actually gets used in interviews</h2>
+        <div set:html={workedExample.split('\n\n').map(p => `<p>${p}</p>`).join('')} />
+      </section>
+    )}
+
+    {redditQuotes.length > 0 && (
+      <section class="slot">
+        <h2>What r/sales says about {termDisplay}</h2>
+        {redditQuotes.map(q => (
+          <blockquote class="reddit-quote">
+            <p>{q.quote}</p>
+            <footer><a href={q.sourceUrl}>r/sales{q.sourceDate ? ` · ${q.sourceDate}` : ''}</a></footer>
+          </blockquote>
+        ))}
+      </section>
+    )}
+
+    {companiesUsing.length > 0 && (
+      <section class="slot">
+        <h2>Companies that test {termDisplay} in interviews</h2>
+        <ul class="bullets">
+          {companiesUsing.map(c => (
+            <li>
+              <a href={c.role ? `/sales-interview-prep/${c.company}/${c.role}` : `/sales-interview-prep/${c.company}/enterprise-ae`}>
+                {c.companyDisplay}{c.roleDisplay ? ` — ${c.roleDisplay}` : ''}
+              </a>
+              {c.note && <> — {c.note}</>}
+            </li>
+          ))}
+        </ul>
+      </section>
+    )}
+
+    {relatedTerms.length > 0 && (
+      <section class="slot">
+        <h2>Related terms</h2>
+        <ul class="bullets">
+          {relatedTerms.map(r => (
+            <li>
+              <a href={`/glossary/${r.term}`}>{r.termDisplay}</a>
+              {r.note && <> — {r.note}</>}
+            </li>
+          ))}
+        </ul>
+      </section>
+    )}
+
+    {faqs.length > 0 && (
+      <section class="slot">
+        <h2>FAQ</h2>
+        {faqs.map(f => (
+          <article class="faq-item">
+            <h3>{f.q}</h3>
+            <p>{f.a}</p>
+          </article>
+        ))}
+      </section>
+    )}
+
+    <section class="slot slot-cta">
+      <p>
+        Knowing {termDisplay} is table stakes. Using it live, under pressure, with the right deal story attached, is the harder skill. <a href={ctaUrl}>Noruma populates the perfect answer for every question in real time</a>, drawn from your prep and your own deal stories.
+      </p>
+    </section>
+  </div>
+
+  <script type="application/ld+json" set:html={JSON.stringify(articleJsonLd)} />
+  <script type="application/ld+json" set:html={JSON.stringify(breadcrumbJsonLd)} />
+  {faqJsonLd && <script type="application/ld+json" set:html={JSON.stringify(faqJsonLd)} />}
+  <script type="application/ld+json" set:html={JSON.stringify(orgJsonLd)} />
+</BaseLayout>
+
+<style>
+  .glossary-page { display: flex; flex-direction: column; }
+  .crumbs { font-size: 13px; color: var(--text-tertiary, #9CA5B2); margin-bottom: 8px; }
+  .crumbs a { color: var(--text-tertiary, #9CA5B2); text-decoration: none; }
+  .crumbs a:hover { color: var(--accent, #00E0CC); }
+  .slot { padding: 32px 0; border-bottom: 1px solid var(--border, rgba(255,255,255,0.08)); }
+  .slot:last-of-type { border-bottom: none; }
+  .slot h2 { color: var(--accent, #00E0CC); font-size: 22px; font-weight: 600; margin: 0 0 18px; }
+  .slot-hero { padding-top: 0; }
+  .last-updated { color: var(--text-tertiary, #9CA5B2); font-size: 13px; margin: 16px 0 0; }
+  .lead { font-size: 17px; color: var(--text, #F7F8FB); margin: 0 0 16px; }
+  .slot p { color: var(--text-secondary, #C5CCD6); margin: 0 0 14px; }
+  .reddit-quote { margin: 16px 0; padding: 14px 18px; border-left: 2px solid var(--accent, #00E0CC); background: var(--surface-1, #111318); border-radius: 4px; }
+  .reddit-quote p { margin: 0 0 8px; }
+  .reddit-quote footer { font-size: 13px; color: var(--text-tertiary, #9CA5B2); }
+  .reddit-quote footer a { color: var(--text-tertiary, #9CA5B2); text-decoration: none; }
+  .bullets { padding-left: 22px; color: var(--text-secondary, #C5CCD6); }
+  .bullets li { margin: 8px 0; }
+  .bullets a { color: var(--accent, #00E0CC); }
+  .faq-item { margin: 0 0 24px; }
+  .faq-item h3 { font-size: 17px; font-weight: 600; margin: 0 0 6px; color: var(--text, #F7F8FB); }
+  .faq-item p { margin: 0; color: var(--text-secondary, #C5CCD6); }
+  .slot-cta { background: linear-gradient(180deg, rgba(0,224,204,0.08), rgba(0,224,204,0.02)); border: 1px solid rgba(0,224,204,0.25); border-radius: 12px; padding: 24px 28px; margin: 32px 0 0; }
+  .slot-cta p { margin: 0; color: var(--text-secondary, #C5CCD6); }
+  .cta-aside { background: linear-gradient(90deg, rgba(0,224,204,0.05), rgba(0,224,204,0.01)); border-left: 3px solid var(--accent, #00E0CC); border-radius: 6px; padding: 14px 18px; margin: 12px 0 0; }
+  .cta-aside h3 { color: var(--text, #F7F8FB); font-size: 15px; font-weight: 600; margin: 0 0 6px; }
+  .cta-aside p { color: var(--text-secondary, #C5CCD6); font-size: 14px; margin: 0 0 8px; }
+  .cta-aside a { color: var(--accent, #00E0CC); font-size: 13px; font-weight: 500; text-decoration: none; }
+</style>

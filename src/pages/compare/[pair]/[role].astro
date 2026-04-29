@@ -1,0 +1,19 @@
+---
+import { getCollection, render } from 'astro:content';
+import ComparePageLayout from '../../../layouts/ComparePageLayout.astro';
+
+export async function getStaticPaths() {
+  const entries = await getCollection('compare-companies');
+  return entries.map((entry) => {
+    // entry.id is `<pair>/<role>` e.g. `salesforce-vs-hubspot/enterprise-ae`
+    const [pair, role] = entry.id.split('/');
+    return { params: { pair, role }, props: { entry } };
+  });
+}
+
+const { entry } = Astro.props;
+const { Content } = await render(entry);
+---
+<ComparePageLayout frontmatter={entry.data}>
+  <Content />
+</ComparePageLayout>

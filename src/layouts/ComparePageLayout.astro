@@ -1,0 +1,197 @@
+---
+import BaseLayout from './BaseLayout.astro';
+
+const { frontmatter } = Astro.props;
+const {
+  title, description, canonical, ogImage, publishDate, lastUpdated,
+  companyA, companyADisplay, companyB, companyBDisplay,
+  role, roleDisplay, compensationA, compensationB,
+  redditQuotesA = [], redditQuotesB = [],
+  decisionFraming, faqs = [],
+} = frontmatter ?? {};
+
+const slugForUtm = `compare-${companyA}-vs-${companyB}-${role}`;
+const baseSite = Astro.site ?? new URL('https://learn.noruma.ai');
+const canonicalUrl = canonical || new URL(Astro.url.pathname, baseSite).toString();
+const ctaUrl = `https://noruma.ai/?noruma_utm_source=learn&noruma_utm_medium=organic&noruma_utm_campaign=${slugForUtm}`;
+
+const fmtMoney = (n) => {
+  if (n == null) return '—';
+  if (n >= 1_000_000) { const v = n / 1_000_000; return `$${v % 1 === 0 ? v.toFixed(0) : v.toFixed(1)}M`; }
+  if (n >= 1_000) return `$${Math.round(n / 1_000)}k`;
+  return `$${n}`;
+};
+const range = (lo, hi) => lo && hi ? `${fmtMoney(lo)}–${fmtMoney(hi)}` : '—';
+const toIsoDate = (d) => (d instanceof Date ? d.toISOString() : new Date(d).toISOString()).slice(0, 10);
+
+const articleJsonLd = {
+  '@context': 'https://schema.org', '@type': 'ComparisonPage',
+  headline: title, description, url: canonicalUrl,
+  datePublished: publishDate ? new Date(publishDate).toISOString() : undefined,
+  dateModified: lastUpdated ? new Date(lastUpdated).toISOString() : undefined,
+};
+const breadcrumbJsonLd = {
+  '@context': 'https://schema.org', '@type': 'BreadcrumbList',
+  itemListElement: [
+    { '@type': 'ListItem', position: 1, name: 'Compare', item: new URL('/compare/', baseSite).toString() },
+    { '@type': 'ListItem', position: 2, name: `${companyADisplay} vs ${companyBDisplay}`, item: canonicalUrl },
+  ],
+};
+const faqJsonLd = faqs.length ? {
+  '@context': 'https://schema.org', '@type': 'FAQPage',
+  mainEntity: faqs.map(f => ({ '@type': 'Question', name: f.q, acceptedAnswer: { '@type': 'Answer', text: f.a } })),
+} : null;
+const orgJsonLd = {
+  '@context': 'https://schema.org', '@type': 'Organization',
+  name: 'Noruma', url: 'https://noruma.ai',
+  description: 'Real-time AI copilot for live sales interviews.',
+};
+---
+<BaseLayout title={title} description={description} canonical={canonicalUrl} ogImage={ogImage} schemaType="Article" publishDate={publishDate} slug={slugForUtm}>
+  <div class="compare-page">
+    <nav class="crumbs" aria-label="Breadcrumb">
+      <a href="/compare/">Compare</a> / <span>{companyADisplay} vs {companyBDisplay}</span> / <span>{roleDisplay}</span>
+    </nav>
+
+    <section class="slot slot-hero">
+      <slot />
+      {lastUpdated && <p class="last-updated">Last updated {toIsoDate(lastUpdated)}</p>}
+    </section>
+
+    <section class="slot">
+      <h2>Compensation side-by-side</h2>
+      <table>
+        <thead>
+          <tr>
+            <th>Metric</th>
+            <th>{companyADisplay}</th>
+            <th>{companyBDisplay}</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr><td>Base salary</td>
+            <td>{range(compensationA?.baseMin, compensationA?.baseMax)}</td>
+            <td>{range(compensationB?.baseMin, compensationB?.baseMax)}</td></tr>
+          <tr><td>OTE</td>
+            <td>{range(compensationA?.oteMin, compensationA?.oteMax)}</td>
+            <td>{range(compensationB?.oteMin, compensationB?.oteMax)}</td></tr>
+          <tr><td>Sample size (Levels.fyi)</td>
+            <td>{compensationA?.sampleSize ?? '—'} reps</td>
+            <td>{compensationB?.sampleSize ?? '—'} reps</td></tr>
+        </tbody>
+      </table>
+      <p class="cite">
+        Sources: <a href={compensationA?.sourceUrl}>{companyADisplay} on Levels.fyi</a> · <a href={compensationB?.sourceUrl}>{companyBDisplay} on Levels.fyi</a>
+      </p>
+    </section>
+
+    <aside class="cta-aside">
+      <h3>Got both interviews lined up? Noruma loads your prep for either company live.</h3>
+      <p>One profile, two prep packs. Switch between companies inside Noruma without re-onboarding. The right answer surfaces for whichever interview you're in.</p>
+      <a href={ctaUrl}>Try Noruma free &rarr;</a>
+    </aside>
+
+    {(redditQuotesA.length > 0 || redditQuotesB.length > 0) && (
+      <section class="slot">
+        <h2>What r/sales says</h2>
+        <div class="two-col">
+          <div>
+            <h3>{companyADisplay}</h3>
+            {redditQuotesA.length > 0 ? redditQuotesA.map(q => (
+              <blockquote class="reddit-quote">
+                <p>{q.quote}</p>
+                <footer><a href={q.sourceUrl}>r/sales{q.sourceDate ? ` · ${q.sourceDate}` : ''}</a></footer>
+              </blockquote>
+            )) : <p class="empty">(no recent r/sales discussion captured)</p>}
+          </div>
+          <div>
+            <h3>{companyBDisplay}</h3>
+            {redditQuotesB.length > 0 ? redditQuotesB.map(q => (
+              <blockquote class="reddit-quote">
+                <p>{q.quote}</p>
+                <footer><a href={q.sourceUrl}>r/sales{q.sourceDate ? ` · ${q.sourceDate}` : ''}</a></footer>
+              </blockquote>
+            )) : <p class="empty">(no recent r/sales discussion captured)</p>}
+          </div>
+        </div>
+      </section>
+    )}
+
+    {decisionFraming && (
+      <section class="slot">
+        <h2>Who should pick which</h2>
+        <div set:html={decisionFraming.split('\n\n').map(p => `<p>${p}</p>`).join('')} />
+      </section>
+    )}
+
+    <section class="slot related">
+      <h2>Deeper prep on each</h2>
+      <ul class="bullets">
+        <li><a href={`/sales-interview-prep/${companyA}/${role}`}>{companyADisplay} {roleDisplay} interview prep</a></li>
+        <li><a href={`/sales-interview-prep/${companyB}/${role}`}>{companyBDisplay} {roleDisplay} interview prep</a></li>
+        <li><a href={`/salaries/${companyA}/${role}`}>{companyADisplay} {roleDisplay} salary</a></li>
+        <li><a href={`/salaries/${companyB}/${role}`}>{companyBDisplay} {roleDisplay} salary</a></li>
+      </ul>
+    </section>
+
+    {faqs.length > 0 && (
+      <section class="slot">
+        <h2>FAQ</h2>
+        {faqs.map(f => (
+          <article class="faq-item">
+            <h3>{f.q}</h3>
+            <p>{f.a}</p>
+          </article>
+        ))}
+      </section>
+    )}
+
+    <section class="slot slot-cta">
+      <p>
+        Comparing two offers is the prep. Performing well in both interviews is the execution. <a href={ctaUrl}>Noruma populates the perfect answer for every question in real time</a>, drawn from your prep and your own deal stories. Audio is processed in real time and not retained unless you opt in.
+      </p>
+    </section>
+  </div>
+
+  <script type="application/ld+json" set:html={JSON.stringify(articleJsonLd)} />
+  <script type="application/ld+json" set:html={JSON.stringify(breadcrumbJsonLd)} />
+  {faqJsonLd && <script type="application/ld+json" set:html={JSON.stringify(faqJsonLd)} />}
+  <script type="application/ld+json" set:html={JSON.stringify(orgJsonLd)} />
+</BaseLayout>
+
+<style>
+  .compare-page { display: flex; flex-direction: column; }
+  .crumbs { font-size: 13px; color: var(--text-tertiary, #9CA5B2); margin-bottom: 8px; }
+  .crumbs a { color: var(--text-tertiary, #9CA5B2); text-decoration: none; }
+  .crumbs a:hover { color: var(--accent, #00E0CC); }
+  .slot { padding: 32px 0; border-bottom: 1px solid var(--border, rgba(255,255,255,0.08)); }
+  .slot:last-of-type { border-bottom: none; }
+  .slot h2 { color: var(--accent, #00E0CC); font-size: 22px; font-weight: 600; margin: 0 0 18px; }
+  .slot h3 { color: var(--text, #F7F8FB); font-size: 16px; font-weight: 600; margin: 0 0 8px; }
+  .slot-hero { padding-top: 0; }
+  .last-updated { color: var(--text-tertiary, #9CA5B2); font-size: 13px; margin: 16px 0 0; }
+  .slot p { color: var(--text-secondary, #C5CCD6); margin: 0 0 14px; }
+  table { border-collapse: collapse; width: 100%; font-size: 0.95rem; }
+  th, td { border-bottom: 1px solid var(--border, rgba(255,255,255,0.08)); padding: 0.625rem 0.75rem; text-align: left; color: var(--text-secondary, #C5CCD6); }
+  th { color: var(--text-tertiary, #9CA5B2); font-weight: 500; font-size: 0.875rem; text-transform: uppercase; letter-spacing: 0.05em; }
+  .cite { font-size: 13px; color: var(--text-tertiary, #9CA5B2); margin: 8px 0 0; }
+  .two-col { display: grid; grid-template-columns: 1fr 1fr; gap: 24px; }
+  @media (max-width: 720px) { .two-col { grid-template-columns: 1fr; } }
+  .reddit-quote { margin: 12px 0; padding: 12px 14px; border-left: 2px solid var(--accent, #00E0CC); background: var(--surface-1, #111318); border-radius: 4px; font-size: 14px; }
+  .reddit-quote p { margin: 0 0 6px; }
+  .reddit-quote footer { font-size: 12px; color: var(--text-tertiary, #9CA5B2); }
+  .reddit-quote footer a { color: var(--text-tertiary, #9CA5B2); text-decoration: none; }
+  .empty { color: var(--text-tertiary, #9CA5B2); font-size: 14px; font-style: italic; }
+  .bullets { padding-left: 22px; color: var(--text-secondary, #C5CCD6); }
+  .bullets li { margin: 8px 0; }
+  .bullets a { color: var(--accent, #00E0CC); }
+  .faq-item { margin: 0 0 24px; }
+  .faq-item h3 { font-size: 17px; }
+  .faq-item p { margin: 0; }
+  .slot-cta { background: linear-gradient(180deg, rgba(0,224,204,0.08), rgba(0,224,204,0.02)); border: 1px solid rgba(0,224,204,0.25); border-radius: 12px; padding: 24px 28px; margin: 32px 0 0; }
+  .slot-cta p { margin: 0; color: var(--text-secondary, #C5CCD6); }
+  .cta-aside { background: linear-gradient(90deg, rgba(0,224,204,0.05), rgba(0,224,204,0.01)); border-left: 3px solid var(--accent, #00E0CC); border-radius: 6px; padding: 14px 18px; margin: 12px 0 0; }
+  .cta-aside h3 { color: var(--text, #F7F8FB); font-size: 15px; font-weight: 600; margin: 0 0 6px; }
+  .cta-aside p { color: var(--text-secondary, #C5CCD6); font-size: 14px; margin: 0 0 8px; }
+  .cta-aside a { color: var(--accent, #00E0CC); font-size: 13px; font-weight: 500; text-decoration: none; }
+</style>

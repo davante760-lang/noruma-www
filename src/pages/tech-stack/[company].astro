@@ -1,0 +1,18 @@
+---
+import { getCollection, render } from 'astro:content';
+import SimplePageLayout from '../../layouts/SimplePageLayout.astro';
+
+export async function getStaticPaths() {
+  const entries = await getCollection('tech-stack');
+  return entries.map((entry) => ({
+    params: { company: entry.id },
+    props: { entry },
+  }));
+}
+
+const { entry } = Astro.props;
+const { Content } = await render(entry);
+---
+<SimplePageLayout frontmatter={entry.data} pageType="tech-stack">
+  <Content />
+</SimplePageLayout>

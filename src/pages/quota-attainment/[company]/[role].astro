@@ -1,0 +1,18 @@
+---
+import { getCollection, render } from 'astro:content';
+import SimplePageLayout from '../../../layouts/SimplePageLayout.astro';
+
+export async function getStaticPaths() {
+  const entries = await getCollection('quota-attainment');
+  return entries.map((entry) => {
+    const [company, role] = entry.id.split('/');
+    return { params: { company, role }, props: { entry } };
+  });
+}
+
+const { entry } = Astro.props;
+const { Content } = await render(entry);
+---
+<SimplePageLayout frontmatter={entry.data} pageType="quota-attainment">
+  <Content />
+</SimplePageLayout>

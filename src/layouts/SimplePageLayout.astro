@@ -1,0 +1,345 @@
+---
+// Shared minimal layout for the simpler page types: quota-attainment,
+// interview-process, methodology-compare, tech-stack. Each page type's
+// route passes a `pageType` prop that toggles which sections render.
+
+import BaseLayout from './BaseLayout.astro';
+
+const { frontmatter, pageType } = Astro.props;
+const fm = frontmatter ?? {};
+
+const baseSite = Astro.site ?? new URL('https://learn.noruma.ai');
+const canonicalUrl = fm.canonical || new URL(Astro.url.pathname, baseSite).toString();
+const slugForUtm = `${pageType}-${(fm.company || fm.methodA || fm.term || 'index')}-${fm.role || ''}`.replace(/-+$/, '');
+const ctaUrl = `https://noruma.ai/?noruma_utm_source=learn&noruma_utm_medium=organic&noruma_utm_campaign=${slugForUtm}`;
+const toIsoDate = (d) => (d instanceof Date ? d.toISOString() : new Date(d).toISOString()).slice(0, 10);
+
+const articleJsonLd = {
+  '@context': 'https://schema.org', '@type': 'Article',
+  headline: fm.title, description: fm.description, url: canonicalUrl,
+  datePublished: fm.publishDate ? new Date(fm.publishDate).toISOString() : undefined,
+  dateModified: fm.lastUpdated ? new Date(fm.lastUpdated).toISOString() : undefined,
+};
+const orgJsonLd = {
+  '@context': 'https://schema.org', '@type': 'Organization',
+  name: 'Noruma', url: 'https://noruma.ai',
+  description: 'Real-time AI copilot for live sales interviews.',
+};
+const faqJsonLd = (fm.faqs && fm.faqs.length) ? {
+  '@context': 'https://schema.org', '@type': 'FAQPage',
+  mainEntity: fm.faqs.map(f => ({ '@type': 'Question', name: f.q, acceptedAnswer: { '@type': 'Answer', text: f.a } })),
+} : null;
+
+// Build breadcrumb based on page type
+let crumbItems = [];
+if (pageType === 'quota-attainment') {
+  crumbItems = [
+    { name: 'Quota attainment', href: '/quota-attainment/' },
+    { name: fm.companyDisplay, href: `/quota-attainment/${fm.company}/` },
+    { name: fm.roleDisplay },
+  ];
+} else if (pageType === 'interview-process') {
+  crumbItems = [
+    { name: 'Interview process', href: '/interview-process/' },
+    { name: fm.companyDisplay },
+  ];
+} else if (pageType === 'methodology-compare') {
+  crumbItems = [
+    { name: 'Compare methodologies', href: '/methodology-compare/' },
+    { name: `${fm.methodADisplay} vs ${fm.methodBDisplay}` },
+  ];
+} else if (pageType === 'tech-stack') {
+  crumbItems = [
+    { name: 'Tech stack', href: '/tech-stack/' },
+    { name: fm.companyDisplay },
+  ];
+}
+
+const breadcrumbJsonLd = {
+  '@context': 'https://schema.org', '@type': 'BreadcrumbList',
+  itemListElement: crumbItems.map((c, i) => ({
+    '@type': 'ListItem', position: i + 1, name: c.name,
+    item: c.href ? new URL(c.href, baseSite).toString() : canonicalUrl,
+  })),
+};
+---
+<BaseLayout title={fm.title} description={fm.description} canonical={canonicalUrl} ogImage={fm.ogImage} schemaType="Article" publishDate={fm.publishDate} slug={slugForUtm}>
+  <div class="simple-page">
+    <nav class="crumbs" aria-label="Breadcrumb">
+      {crumbItems.map((c, i) => (
+        <>
+          {i > 0 && <span aria-hidden="true"> / </span>}
+          {c.href ? <a href={c.href}>{c.name}</a> : <span>{c.name}</span>}
+        </>
+      ))}
+    </nav>
+
+    <section class="slot slot-hero">
+      <slot />
+      {fm.lastUpdated && <p class="last-updated">Last updated {toIsoDate(fm.lastUpdated)}</p>}
+    </section>
+
+    {/* QUOTA-ATTAINMENT sections */}
+    {pageType === 'quota-attainment' && (
+      <>
+        <section class="slot">
+          <h2>Attainment summary</h2>
+          <div set:html={fm.attainmentSummary?.split('\n\n').map(p => `<p>${p}</p>`).join('') ?? ''} />
+        </section>
+        {fm.realizedVsOte?.note && (
+          <section class="slot">
+            <h2>Realized comp vs stated OTE</h2>
+            <p>{fm.realizedVsOte.note}</p>
+            {fm.realizedVsOte.base && (
+              <p class="cite">
+                Source: <a href={fm.realizedVsOte.base.sourceUrl}>{fm.realizedVsOte.base.source}</a>, sample size {fm.realizedVsOte.base.sampleSize} reps.
+              </p>
+            )}
+          </section>
+        )}
+        {fm.rampNotes && (
+          <section class="slot">
+            <h2>Ramp expectations</h2>
+            <p>{fm.rampNotes}</p>
+          </section>
+        )}
+        {fm.attainmentQuotes && fm.attainmentQuotes.length > 0 && (
+          <section class="slot">
+            <h2>What r/sales says about quota at {fm.companyDisplay}</h2>
+            {fm.attainmentQuotes.map(q => (
+              <blockquote class="reddit-quote">
+                <p>{q.quote}</p>
+                <footer><a href={q.sourceUrl}>r/sales{q.sourceDate ? ` · ${q.sourceDate}` : ''}</a></footer>
+              </blockquote>
+            ))}
+          </section>
+        )}
+        {(fm.redFlags?.length > 0 || fm.greenFlags?.length > 0) && (
+          <section class="slot">
+            <h2>Flags candidates raise</h2>
+            <div class="flags-grid">
+              {fm.greenFlags?.length > 0 && (
+                <div>
+                  <h3>Green flags</h3>
+                  <ul class="bullets">{fm.greenFlags.map(g => <li>{g}</li>)}</ul>
+                </div>
+              )}
+              {fm.redFlags?.length > 0 && (
+                <div>
+                  <h3>Red flags</h3>
+                  <ul class="bullets">{fm.redFlags.map(r => <li>{r}</li>)}</ul>
+                </div>
+              )}
+            </div>
+          </section>
+        )}
+        <section class="slot related">
+          <h2>Related pages for {fm.companyDisplay}</h2>
+          <ul class="bullets">
+            <li><a href={`/sales-interview-prep/${fm.company}/${fm.role}`}>Interview prep guide</a></li>
+            <li><a href={`/salaries/${fm.company}/${fm.role}`}>Salary benchmarks</a></li>
+          </ul>
+        </section>
+      </>
+    )}
+
+    {/* INTERVIEW-PROCESS sections */}
+    {pageType === 'interview-process' && (
+      <>
+        <section class="slot">
+          <h2>Overview</h2>
+          <div set:html={fm.intro?.split('\n\n').map(p => `<p>${p}</p>`).join('') ?? ''} />
+        </section>
+        {fm.stages && fm.stages.length > 0 && (
+          <section class="slot">
+            <h2>Stage-by-stage breakdown</h2>
+            <table>
+              <thead>
+                <tr><th>Stage</th><th>Format</th><th>Duration</th><th>Who</th><th>Focus</th></tr>
+              </thead>
+              <tbody>
+                {fm.stages.map(s => (
+                  <tr>
+                    <td>{s.name}</td>
+                    <td>{s.format ?? ''}</td>
+                    <td>{s.durationMin ? `${s.durationMin} min` : ''}</td>
+                    <td>{s.who ?? ''}</td>
+                    <td>{s.focus ?? ''}</td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </section>
+        )}
+        {fm.timelineNote && (
+          <section class="slot">
+            <h2>Timeline</h2>
+            <p>{fm.timelineNote}</p>
+          </section>
+        )}
+        {fm.candidateExperienceQuotes && fm.candidateExperienceQuotes.length > 0 && (
+          <section class="slot">
+            <h2>What candidates say</h2>
+            {fm.candidateExperienceQuotes.map(q => (
+              <blockquote class="reddit-quote">
+                <p>{q.quote}</p>
+                <footer><a href={q.sourceUrl}>r/sales{q.sourceDate ? ` · ${q.sourceDate}` : ''}</a></footer>
+              </blockquote>
+            ))}
+          </section>
+        )}
+        {fm.rolesCovered && fm.rolesCovered.length > 0 && (
+          <section class="slot">
+            <h2>Role-specific prep for {fm.companyDisplay}</h2>
+            <ul class="bullets">
+              {fm.rolesCovered.map(r => (
+                <li>
+                  <a href={`/sales-interview-prep/${fm.company}/${r.role}`}>{r.roleDisplay} interview prep</a>
+                  {r.note && <> — {r.note}</>}
+                </li>
+              ))}
+            </ul>
+          </section>
+        )}
+      </>
+    )}
+
+    {/* METHODOLOGY-COMPARE sections */}
+    {pageType === 'methodology-compare' && (
+      <>
+        <section class="slot">
+          <h2>Overview</h2>
+          <div set:html={fm.intro?.split('\n\n').map(p => `<p>${p}</p>`).join('') ?? ''} />
+        </section>
+        <section class="slot">
+          <h2>Side-by-side criteria</h2>
+          <div class="two-col">
+            <div>
+              <h3>{fm.methodADisplay}</h3>
+              <ul class="bullets">{fm.criteriaA?.map(c => <li>{c}</li>)}</ul>
+            </div>
+            <div>
+              <h3>{fm.methodBDisplay}</h3>
+              <ul class="bullets">{fm.criteriaB?.map(c => <li>{c}</li>)}</ul>
+            </div>
+          </div>
+        </section>
+        <section class="slot">
+          <h2>When to use which</h2>
+          <div class="two-col">
+            <div>
+              <h3>Use {fm.methodADisplay} when</h3>
+              <p>{fm.whenToUseA}</p>
+            </div>
+            <div>
+              <h3>Use {fm.methodBDisplay} when</h3>
+              <p>{fm.whenToUseB}</p>
+            </div>
+          </div>
+        </section>
+        {fm.companiesFavoring && fm.companiesFavoring.length > 0 && (
+          <section class="slot">
+            <h2>Companies that favor each</h2>
+            <ul class="bullets">
+              {fm.companiesFavoring.map(c => (
+                <li>
+                  <a href={`/sales-interview-prep/${c.company}/enterprise-ae`}>{c.companyDisplay}</a> uses {c.method}
+                  {c.sourceUrl && <> (<a href={c.sourceUrl}>source</a>)</>}
+                </li>
+              ))}
+            </ul>
+          </section>
+        )}
+      </>
+    )}
+
+    {/* TECH-STACK sections */}
+    {pageType === 'tech-stack' && (
+      <>
+        <section class="slot">
+          <h2>Overview</h2>
+          <div set:html={fm.intro?.split('\n\n').map(p => `<p>${p}</p>`).join('') ?? ''} />
+        </section>
+        <section class="slot">
+          <h2>{fm.companyDisplay}'s sales tech stack</h2>
+          <ul class="bullets">
+            {fm.tools?.map(t => (
+              <li>
+                <strong>{t.tool}</strong>{t.category ? ` — ${t.category}` : ''}{' '}
+                <a class="src-tag" href={t.sourceUrl}>(archived posting{t.archivedDate ? `, ${t.archivedDate}` : ''})</a>
+              </li>
+            ))}
+          </ul>
+        </section>
+        {fm.rolesAffected && fm.rolesAffected.length > 0 && (
+          <section class="slot">
+            <h2>Prep guides for {fm.companyDisplay} sales roles</h2>
+            <ul class="bullets">
+              {fm.rolesAffected.map(r => (
+                <li><a href={`/sales-interview-prep/${fm.company}/${r.role}`}>{r.roleDisplay} interview prep</a></li>
+              ))}
+            </ul>
+          </section>
+        )}
+      </>
+    )}
+
+    {fm.faqs && fm.faqs.length > 0 && (
+      <section class="slot">
+        <h2>FAQ</h2>
+        {fm.faqs.map(f => (
+          <article class="faq-item">
+            <h3>{f.q}</h3>
+            <p>{f.a}</p>
+          </article>
+        ))}
+      </section>
+    )}
+
+    <section class="slot slot-cta">
+      <p>
+        <a href={ctaUrl}>Noruma populates the perfect answer for every question in real time</a>, drawn from your prep and your own deal stories. Audio is processed in real time and not retained unless you opt in.
+      </p>
+    </section>
+  </div>
+
+  <script type="application/ld+json" set:html={JSON.stringify(articleJsonLd)} />
+  <script type="application/ld+json" set:html={JSON.stringify(breadcrumbJsonLd)} />
+  {faqJsonLd && <script type="application/ld+json" set:html={JSON.stringify(faqJsonLd)} />}
+  <script type="application/ld+json" set:html={JSON.stringify(orgJsonLd)} />
+</BaseLayout>
+
+<style>
+  .simple-page { display: flex; flex-direction: column; }
+  .crumbs { font-size: 13px; color: var(--text-tertiary, #9CA5B2); margin-bottom: 8px; }
+  .crumbs a { color: var(--text-tertiary, #9CA5B2); text-decoration: none; }
+  .crumbs a:hover { color: var(--accent, #00E0CC); }
+  .slot { padding: 32px 0; border-bottom: 1px solid var(--border, rgba(255,255,255,0.08)); }
+  .slot:last-of-type { border-bottom: none; }
+  .slot h2 { color: var(--accent, #00E0CC); font-size: 22px; font-weight: 600; margin: 0 0 18px; }
+  .slot h3 { color: var(--text, #F7F8FB); font-size: 16px; font-weight: 600; margin: 0 0 8px; }
+  .slot p { color: var(--text-secondary, #C5CCD6); margin: 0 0 14px; }
+  .slot-hero { padding-top: 0; }
+  .last-updated { color: var(--text-tertiary, #9CA5B2); font-size: 13px; margin: 16px 0 0; }
+  table { border-collapse: collapse; width: 100%; font-size: 0.95rem; }
+  th, td { border-bottom: 1px solid var(--border, rgba(255,255,255,0.08)); padding: 0.625rem 0.75rem; text-align: left; color: var(--text-secondary, #C5CCD6); }
+  th { color: var(--text-tertiary, #9CA5B2); font-weight: 500; font-size: 0.875rem; text-transform: uppercase; letter-spacing: 0.05em; }
+  .cite { font-size: 13px; color: var(--text-tertiary, #9CA5B2); margin: 8px 0 0; }
+  .src-tag { color: var(--text-tertiary, #9CA5B2); font-size: 0.85em; text-decoration: none; }
+  .reddit-quote { margin: 16px 0; padding: 14px 18px; border-left: 2px solid var(--accent, #00E0CC); background: var(--surface-1, #111318); border-radius: 4px; }
+  .reddit-quote p { margin: 0 0 8px; color: var(--text-secondary, #C5CCD6); }
+  .reddit-quote footer { font-size: 13px; color: var(--text-tertiary, #9CA5B2); }
+  .reddit-quote footer a { color: var(--text-tertiary, #9CA5B2); text-decoration: none; }
+  .bullets { padding-left: 22px; color: var(--text-secondary, #C5CCD6); }
+  .bullets li { margin: 8px 0; }
+  .bullets a { color: var(--accent, #00E0CC); }
+  .two-col { display: grid; grid-template-columns: 1fr 1fr; gap: 24px; }
+  @media (max-width: 720px) { .two-col { grid-template-columns: 1fr; } }
+  .flags-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 24px; }
+  @media (max-width: 720px) { .flags-grid { grid-template-columns: 1fr; } }
+  .faq-item { margin: 0 0 24px; }
+  .faq-item h3 { font-size: 17px; }
+  .faq-item p { margin: 0; }
+  .slot-cta { background: linear-gradient(180deg, rgba(0,224,204,0.08), rgba(0,224,204,0.02)); border: 1px solid rgba(0,224,204,0.25); border-radius: 12px; padding: 24px 28px; margin: 32px 0 0; }
+  .slot-cta p { margin: 0; color: var(--text-secondary, #C5CCD6); }
+</style>

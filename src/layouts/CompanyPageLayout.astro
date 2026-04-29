@@ -1,0 +1,202 @@
+---
+// CompanyPageLayout — wraps BaseLayout. Used by the sales-interview-prep
+// content collection via the dynamic route at
+//   src/pages/sales-interview-prep/[company]/[role].astro
+//
+// Route renders:
+//   <CompanyPageLayout frontmatter={entry.data}>
+//     <Content />   <!-- MDX with <Fragment slot="..."> blocks -->
+//   </CompanyPageLayout>
+//
+// MDX body fills six top-level named slots:
+//   companyHero, processTable, questionList, compTable, faq, cta
+//
+// Architecture: this layout owns ONLY company-page structure. Brand chrome
+// (nav, hero pitch, GA4, UTM cookies, footer CTA, fonts, color tokens) lives
+// in BaseLayout. Redesign of chrome -> edit BaseLayout. Redesign of company
+// section structure -> edit this file. Page MDX rarely needs to change.
+
+import BaseLayout from './BaseLayout.astro';
+
+const { frontmatter } = Astro.props;
+const {
+  title,
+  description,
+  canonical,
+  ogImage,
+  publishDate,
+  lastUpdated,
+  company,
+  companyDisplay,
+  role,
+  roleDisplay,
+  questions = [],
+} = frontmatter ?? {};
+
+const slugForUtm = company && role ? `${company}-${role}` : undefined;
+
+const toIso = (d) => (d instanceof Date ? d.toISOString() : new Date(d).toISOString());
+const toIsoDate = (d) => toIso(d).slice(0, 10);
+
+const baseSite = Astro.site ?? new URL('https://learn.noruma.ai');
+const canonicalUrl = canonical || new URL(Astro.url.pathname, baseSite).toString();
+
+// FAQ JSON-LD generated from frontmatter.questions so MDX never duplicates
+// citation data into JSON-LD by hand.
+const faqJsonLd = questions.length
+  ? {
+      '@context': 'https://schema.org',
+      '@type': 'FAQPage',
+      mainEntity: questions.map((q) => ({
+        '@type': 'Question',
+        name: q.question,
+        acceptedAnswer: {
+          '@type': 'Answer',
+          text: q.sourceQuote ?? `Sourced from ${q.sourceType} (${q.sourceUrl}).`,
+        },
+      })),
+    }
+  : null;
+
+const breadcrumbJsonLd = {
+  '@context': 'https://schema.org',
+  '@type': 'BreadcrumbList',
+  itemListElement: [
+    {
+      '@type': 'ListItem',
+      position: 1,
+      name: 'Sales Interview Prep',
+      item: new URL('/sales-interview-prep/', baseSite).toString(),
+    },
+    company && companyDisplay
+      ? {
+          '@type': 'ListItem',
+          position: 2,
+          name: companyDisplay,
+          item: new URL(`/sales-interview-prep/${company}/`, baseSite).toString(),
+        }
+      : null,
+    roleDisplay
+      ? {
+          '@type': 'ListItem',
+          position: 3,
+          name: roleDisplay,
+          item: canonicalUrl,
+        }
+      : null,
+  ].filter(Boolean),
+};
+
+const orgJsonLd = {
+  '@context': 'https://schema.org',
+  '@type': 'Organization',
+  name: 'Noruma',
+  url: 'https://noruma.ai',
+  description: 'Real-time AI interview copilot for tech sales professionals.',
+};
+---
+<BaseLayout
+  title={title}
+  description={description}
+  canonical={canonicalUrl}
+  ogImage={ogImage}
+  schemaType="Article"
+  publishDate={publishDate}
+  slug={slugForUtm}
+>
+  <div class="company-page">
+    <nav class="crumbs" aria-label="Breadcrumb">
+      <a href="/sales-interview-prep/">Sales Interview Prep</a>
+      {companyDisplay && <span aria-hidden="true"> / </span>}
+      {companyDisplay && <span>{companyDisplay}</span>}
+      {roleDisplay && <span aria-hidden="true"> / </span>}
+      {roleDisplay && <span>{roleDisplay}</span>}
+    </nav>
+
+    <section class="slot slot-hero">
+      <slot name="companyHero" />
+      {lastUpdated && (
+        <p class="last-updated">Last updated {toIsoDate(lastUpdated)}</p>
+      )}
+    </section>
+
+    <section class="slot slot-process">
+      <h2>Interview process</h2>
+      <slot name="processTable" />
+    </section>
+
+    <section class="slot slot-questions">
+      <h2>Questions and sources</h2>
+      <slot name="questionList" />
+    </section>
+
+    <section class="slot slot-comp">
+      <h2>Compensation benchmarks</h2>
+      <slot name="compTable" />
+    </section>
+
+    <section class="slot slot-faq">
+      <h2>FAQ</h2>
+      <slot name="faq" />
+    </section>
+
+    <section class="slot slot-cta">
+      <slot name="cta" />
+    </section>
+  </div>
+
+  {faqJsonLd && (
+    <script type="application/ld+json" set:html={JSON.stringify(faqJsonLd)} />
+  )}
+  <script type="application/ld+json" set:html={JSON.stringify(breadcrumbJsonLd)} />
+  <script type="application/ld+json" set:html={JSON.stringify(orgJsonLd)} />
+</BaseLayout>
+
+<style>
+  .company-page {
+    display: flex;
+    flex-direction: column;
+    gap: 0;
+  }
+  .crumbs {
+    font-size: 13px;
+    color: var(--text-tertiary, #9CA5B2);
+    margin-bottom: 8px;
+  }
+  .crumbs a {
+    color: var(--text-tertiary, #9CA5B2);
+    text-decoration: none;
+  }
+  .crumbs a:hover {
+    color: var(--accent, #00E0CC);
+  }
+  .slot {
+    padding: 32px 0;
+    border-bottom: 1px solid var(--border, rgba(255, 255, 255, 0.08));
+  }
+  .slot:last-of-type {
+    border-bottom: none;
+  }
+  .slot h2 {
+    color: var(--accent, #00E0CC);
+    font-size: 22px;
+    font-weight: 600;
+    letter-spacing: -0.01em;
+    margin: 0 0 18px;
+  }
+  .slot-hero {
+    padding-top: 0;
+  }
+  .last-updated {
+    color: var(--text-tertiary, #9CA5B2);
+    font-size: 13px;
+    margin: 16px 0 0;
+  }
+  .slot-cta {
+    background: linear-gradient(180deg, rgba(0, 224, 204, 0.08), rgba(0, 224, 204, 0.02));
+    border: 1px solid rgba(0, 224, 204, 0.25);
+    border-radius: 12px;
+    padding: 24px 28px;
+    margin: 32px 0 0;
+  }
+</style>

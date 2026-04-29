@@ -1,0 +1,21 @@
+---
+import { getCollection, render } from 'astro:content';
+import CompanyPageLayout from '../../../layouts/CompanyPageLayout.astro';
+
+export async function getStaticPaths() {
+  const entries = await getCollection('sales-interview-prep');
+  return entries.map((entry) => {
+    const [company, role] = entry.id.split('/');
+    return {
+      params: { company, role },
+      props: { entry },
+    };
+  });
+}
+
+const { entry } = Astro.props;
+const { Content } = await render(entry);
+---
+<CompanyPageLayout frontmatter={entry.data}>
+  <Content />
+</CompanyPageLayout>

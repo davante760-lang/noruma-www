@@ -387,9 +387,9 @@ Key features:
 - **Calendar auto-detection**: Auto-activates when Google Calendar or Outlook
   shows an interview
 
-Pricing: $99/month. Free trial available via the desktop app, plus a 5-question
-practice demo on the [marketing
-site](https://noruma.ai?noruma_utm_source=learn&noruma_utm_medium=organic&noruma_utm_campaign=ai-interview-coach).
+Pricing: $99/month. Runs in your browser — no install — and works on Mac,
+Windows, Linux, and ChromeOS. Try a 5-question practice demo on the
+[marketing site](https://noruma.ai?noruma_utm_source=learn&noruma_utm_medium=organic&noruma_utm_campaign=ai-interview-coach).
 
 ---
 

@@ -202,7 +202,7 @@ When you're in a live interview and the ICP question comes up, [Noruma Interview
 
 The audio is processed in real time—you get the prompt exactly when you need it, personalized to your actual experience.
 
-Try it free: [Download Noruma](https://noruma.ai?noruma_utm_source=learn&noruma_utm_medium=organic&noruma_utm_campaign=how-to-answer-describe-your-ideal-customer-profile)
+Try it free in your browser: [Open Noruma](https://noruma.ai?noruma_utm_source=learn&noruma_utm_medium=organic&noruma_utm_campaign=how-to-answer-describe-your-ideal-customer-profile)
 
 ## Key Takeaways
 

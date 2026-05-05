@@ -249,10 +249,11 @@ from memory.
 
 ### Can I use it on my phone for a phone interview?
 
-Most real-time assistants are desktop apps (Mac or Windows). Phone
-interviews are trickier because mobile operating systems restrict
-background audio capture. If you're doing a phone screen, ask if they'd
-be open to switching to Zoom or Google Meet.
+Most real-time assistants need a desktop browser to capture meeting
+audio. Phone interviews are trickier because mobile operating systems
+restrict background audio capture. If you're doing a phone screen, ask
+if they'd be open to switching to Zoom or Google Meet so you can take
+the call on your laptop.
 
 ### Does it work for first-round recruiter screens?
 
